@@ -7,17 +7,17 @@
  permission.
  */
 "use strict";
-function Term(aa, ba, ca) {
-    this.w = aa;
-    this.h = ba;
-    this.cur_h = ba;
+function Term(width, height, handler) {
+    this.w = width;
+    this.h = height;
+    this.cur_h = height;
     this.tot_h = 1000;
     this.y_base = 0;
     this.y_disp = 0;
     this.x = 0;
     this.y = 0;
     this.cursorstate = 0;
-    this.handler = ca;
+    this.handler = handler;
     this.convert_lf_to_crlf = false;
     this.state = 0;
     this.output_queue = "";
@@ -28,97 +28,178 @@ function Term(aa, ba, ca) {
     this.is_mac = (navigator.userAgent.indexOf("Mac") >= 0) ? true : false;
     this.key_rep_state = 0;
     this.key_rep_str = "";
+    this.tlines = [];
 }
-Term.prototype.open = function () {
-    var y, da, i, ea, c;
-    this.lines = new Array();
+Term.prototype.open = function (container) {
+    var y, line, i, _this, c, table, td_element, tr_element;
+    this.lines = [];
     c = 32 | (this.def_attr << 16);
     for (y = 0; y < this.cur_h; y++) {
-        da = new Array();
-        for (i = 0; i < this.w; i++)da[i] = c;
-        this.lines[y] = da;
+        line = [];
+        for (i = 0; i < this.w; i++) {
+            line[i] = c;
+        }
+        this.lines[y] = line;
     }
-    document.writeln('<table border="0" cellspacing="0" cellpadding="0">');
+
+    // TODO: jquery equivalents (!)
+
+    table = document.createElement('table');
+    table.border = 0;
+    table.cellSpacing = 0;
+    table.cellPadding = 0;
     for (y = 0; y < this.h; y++) {
-        document.writeln('<tr><td class="term" id="tline' + y + '"></td></tr>');
+        tr_element = document.createElement('tr');
+        td_element = document.createElement('td');
+        td_element.className = 'term';
+        this.tlines[y] = td_element;
+        tr_element.appendChild(td_element);
+        table.appendChild(tr_element);
     }
-    document.writeln('</table>');
     this.refresh(0, this.h - 1);
-    document.addEventListener("keydown", this.keyDownHandler.bind(this), true);
-    document.addEventListener("keypress", this.keyPressHandler.bind(this), true);
-    ea = this;
+    _this = this;
+
+    // TODO: prototype.close(), that should delete this interval, remove keydown, keypress events listeners
     setInterval(function () {
-        ea.cursor_timer_cb();
+        _this.cursor_timer_cb();
     }, 1000);
+
+    var keydown_handler = _this.keyDownHandler.bind(_this);
+    var keypress_handler = _this.keyPressHandler.bind(_this);
+
+    //TODO: switch class instead of direct setting !
+    table.style.border = "10px solid black";
+
+    var capture_keyboard = function () {
+        table.style.border = "10px solid red";
+        document.addEventListener("keydown", keydown_handler);
+        document.addEventListener("keypress", keypress_handler);
+    };
+
+    var uncapture_keyboard = function () {
+        table.style.border = "10px solid black";
+        document.removeEventListener('keydown', keydown_handler);
+        document.removeEventListener('keypress', keypress_handler);
+    };
+
+    var handleMouseEnter = function (handler) {
+        return function (e) {
+            e = e || event; // IE
+            var toElement = e.relatedTarget || e.srcElement; // IE
+
+            // проверяем, мышь пришла с элемента внутри текущего?
+            while (toElement && toElement !== this) {
+                toElement = toElement.parentNode;
+            }
+
+            if (toElement == this) { // да, мышь перешла изнутри родителя
+                return; // мы перешли на родителя из потомка, лишнее событие
+            }
+
+            return handler.call(this, e);
+        };
+    };
+
+    var handleMouseLeave = function (handler) {
+
+        return function (e) {
+            e = e || event; // IE
+            var toElement = e.relatedTarget || e.toElement; // IE
+
+            // проверяем, мышь ушла на элемент внутри текущего?
+            while (toElement && toElement !== this) {
+                toElement = toElement.parentNode;
+            }
+
+            if (toElement == this) { // да, мы всё еще внутри родителя
+                return; // мы перешли с родителя на потомка, лишнее событие
+            }
+
+            return handler.call(this, e);
+        };
+    };
+
+    table.onmouseover = handleMouseEnter(capture_keyboard);
+    table.onmouseout = handleMouseLeave(uncapture_keyboard);
+
+    if (container.appendChild) {
+        container.appendChild(table);
+    } else {
+        //jquery version
+        container.append(table);
+    }
 };
+
+
 Term.prototype.refresh = function (fa, ga) {
-    var ha, y, da, ia, c, w, i, ja, ka, la, ma, na, oa;
+    var y, character_line_string, inner_html, character_code, width, i, ja, attr, def_attr, fg_color_index, bg_color_index, line_number;
     for (y = fa; y <= ga; y++) {
-        oa = y + this.y_disp;
-        if (oa >= this.cur_h)oa -= this.cur_h;
-        da = this.lines[oa];
-        ia = "";
-        w = this.w;
+        line_number = y + this.y_disp;
+        if (line_number >= this.cur_h)
+            line_number -= this.cur_h;
+        character_line_string = this.lines[line_number];
+        inner_html = "";
+        width = this.w;
         if (y == this.y && this.cursor_state && this.y_disp == this.y_base) {
             ja = this.x;
         } else {
             ja = -1;
         }
-        la = this.def_attr;
-        for (i = 0; i < w; i++) {
-            c = da[i];
-            ka = c >> 16;
-            c &= 0xffff;
+        def_attr = this.def_attr;
+        for (i = 0; i < width; i++) {
+            character_code = character_line_string[i];
+            attr = character_code >> 16;
+            character_code &= 0xffff;
             if (i == ja) {
-                ka = -1;
+                attr = -1;
             }
-            if (ka != la) {
-                if (la != this.def_attr)ia += '</span>';
-                if (ka != this.def_attr) {
-                    if (ka == -1) {
-                        ia += '<span class="termReverse">';
+            if (attr != def_attr) {
+                if (def_attr != this.def_attr)
+                    inner_html += '</span>';
+                if (attr != this.def_attr) {
+                    if (attr == -1) {
+                        inner_html += '<span class="termReverse">';
                     } else {
-                        ia += '<span style="';
-                        ma = (ka >> 3) & 7;
-                        na = ka & 7;
-                        if (ma != 7) {
-                            ia += 'color:' + this.fg_colors[ma] + ';';
+                        inner_html += '<span style="';
+                        fg_color_index = (attr >> 3) & 7;
+                        bg_color_index = attr & 7;
+                        if (fg_color_index != 7) {
+                            inner_html += 'color:' + this.fg_colors[fg_color_index] + ';';
                         }
-                        if (na != 0) {
-                            ia += 'background-color:' + this.bg_colors[na] + ';';
+                        if (bg_color_index != 0) {
+                            inner_html += 'background-color:' + this.bg_colors[bg_color_index] + ';';
                         }
-                        ia += '">';
+                        inner_html += '">';
                     }
                 }
             }
-            switch (c) {
+            switch (character_code) {
                 case 32:
-                    ia += "&nbsp;";
+                    inner_html += "&nbsp;";
                     break;
                 case 38:
-                    ia += "&amp;";
+                    inner_html += "&amp;";
                     break;
                 case 60:
-                    ia += "&lt;";
+                    inner_html += "&lt;";
                     break;
                 case 62:
-                    ia += "&gt;";
+                    inner_html += "&gt;";
                     break;
                 default:
-                    if (c < 32) {
-                        ia += "&nbsp;";
+                    if (character_code < 32) {
+                        inner_html += "&nbsp;";
                     } else {
-                        ia += String.fromCharCode(c);
+                        inner_html += String.fromCharCode(character_code);
                     }
                     break;
             }
-            la = ka;
+            def_attr = attr;
         }
-        if (la != this.def_attr) {
-            ia += '</span>';
+        if (def_attr != this.def_attr) {
+            inner_html += '</span>';
         }
-        ha = document.getElementById("tline" + y);
-        ha.innerHTML = ia;
+        this.tlines[y].innerHTML = inner_html;
     }
 };
 Term.prototype.cursor_timer_cb = function () {
@@ -132,18 +213,20 @@ Term.prototype.show_cursor = function () {
     }
 };
 Term.prototype.scroll = function () {
-    var y, da, x, c, oa;
+    var line_char_values, x, character_code, line_index;
     if (this.cur_h < this.tot_h) {
         this.cur_h++;
     }
     if (++this.y_base == this.cur_h)this.y_base = 0;
     this.y_disp = this.y_base;
-    c = 32 | (this.def_attr << 16);
-    da = new Array();
-    for (x = 0; x < this.w; x++)da[x] = c;
-    oa = this.y_base + this.h - 1;
-    if (oa >= this.cur_h)oa -= this.cur_h;
-    this.lines[oa] = da;
+    character_code = 32 | (this.def_attr << 16);
+    line_char_values = [];
+    for (x = 0; x < this.w; x++)
+        line_char_values[x] = character_code;
+    line_index = this.y_base + this.h - 1;
+    if (line_index >= this.cur_h)
+        line_index -= this.cur_h;
+    this.lines[line_index] = line_char_values;
 };
 Term.prototype.scroll_disp = function (n) {
     var i, oa;
@@ -155,10 +238,13 @@ Term.prototype.scroll_disp = function (n) {
     } else {
         n = -n;
         oa = this.y_base + this.h;
-        if (oa >= this.cur_h)oa -= this.cur_h;
+        if (oa >= this.cur_h)
+            oa -= this.cur_h;
         for (i = 0; i < n; i++) {
-            if (this.y_disp == oa)break;
-            if (--this.y_disp < 0)this.y_disp = this.cur_h - 1;
+            if (this.y_disp == oa)
+                break;
+            if (--this.y_disp < 0)
+                this.y_disp = this.cur_h - 1;
         }
     }
     this.refresh(0, this.h - 1);
@@ -200,7 +286,7 @@ Term.prototype.write = function (pa) {
     var ua = 0;
     var va = 1;
     var wa = 2;
-    var i, c, fa, ga, l, n, j, oa;
+    var i, c, fa, ga, n, j, oa;
     fa = this.h;
     ga = -1;
     qa(this.y);
@@ -266,7 +352,7 @@ Term.prototype.write = function (pa) {
                 break;
             case va:
                 if (c == 91) {
-                    this.esc_params = new Array();
+                    this.esc_params = [];
                     this.cur_param = 0;
                     this.state = wa;
                 } else {
@@ -286,40 +372,55 @@ Term.prototype.write = function (pa) {
                             n = this.esc_params[0];
                             if (n < 1)n = 1;
                             this.y -= n;
-                            if (this.y < 0)this.y = 0;
+                            if (this.y < 0)
+                                this.y = 0;
                             break;
                         case 66:
                             n = this.esc_params[0];
                             if (n < 1)n = 1;
                             this.y += n;
-                            if (this.y >= this.h)this.y = this.h - 1;
+                            if (this.y >= this.h)
+                                this.y = this.h - 1;
                             break;
                         case 67:
                             n = this.esc_params[0];
-                            if (n < 1)n = 1;
+                            if (n < 1)
+                                n = 1;
                             this.x += n;
-                            if (this.x >= this.w - 1)this.x = this.w - 1;
+                            if (this.x >= this.w - 1)
+                                this.x = this.w - 1;
                             break;
                         case 68:
                             n = this.esc_params[0];
                             if (n < 1)n = 1;
                             this.x -= n;
-                            if (this.x < 0)this.x = 0;
+                            if (this.x < 0)
+                                this.x = 0;
                             break;
                         case 72:
                         {
-                            var xa, oa;
-                            oa = this.esc_params[0] - 1;
-                            if (this.esc_params.length >= 2)xa = this.esc_params[1] - 1; else xa = 0;
-                            if (oa < 0)oa = 0; else if (oa >= this.h)oa = this.h - 1;
-                            if (xa < 0)xa = 0; else if (xa >= this.w)xa = this.w - 1;
+                            var xa, oa1;
+                            oa1 = this.esc_params[0] - 1;
+                            if (this.esc_params.length >= 2)
+                                xa = this.esc_params[1] - 1;
+                            else
+                                xa = 0;
+                            if (oa1 < 0)
+                                oa1 = 0;
+                            else if (oa1 >= this.h)
+                                oa1 = this.h - 1;
+                            if (xa < 0)
+                                xa = 0;
+                            else if (xa >= this.w)
+                                xa = this.w - 1;
                             this.x = xa;
-                            this.y = oa;
+                            this.y = oa1;
                         }
                             break;
                         case 74:
                             ra(this, this.x, this.y);
-                            for (j = this.y + 1; j < this.h; j++)ra(this, 0, j);
+                            for (j = this.y + 1; j < this.h; j++)
+                                ra(this, 0, j);
                             break;
                         case 75:
                             ra(this, this.x, this.y);
@@ -338,107 +439,122 @@ Term.prototype.write = function (pa) {
         }
     }
     qa(this.y);
-    if (ga >= fa)this.refresh(fa, ga);
+    if (ga >= fa)
+        this.refresh(fa, ga);
 };
 Term.prototype.writeln = function (pa) {
     this.write(pa + '\r\n');
 };
-Term.prototype.keyDownHandler = function (ya) {
-    var pa;
-    pa = "";
-    switch (ya.keyCode) {
-        case 8:
-            pa = "";
+
+// http://stackoverflow.com/questions/7295508/javascript-capture-browser-shortcuts-ctrlt-n-w
+// http://www.javascripter.net/faq/keycodes.htm
+
+Term.prototype.keyDownHandler = function (event) {
+    var str;
+    str = "";
+    switch (event.keyCode) {
+        case 8: // backspace
+            str = "\x7f";
             break;
-        case 9:
-            pa = "\t";
+        case 9: //tab
+            str = "\t";
             break;
-        case 13:
-            pa = "\r";
+        case 13: //enter
+            str = "\r";
             break;
-        case 27:
-            pa = "\x1b";
+        case 27: //Esc
+            str = "\x1b";
             break;
-        case 37:
-            pa = "\x1b[D";
+        case 37: // <-
+            str = "\x1b[D";
             break;
-        case 39:
-            pa = "\x1b[C";
+        case 39: // ->
+            str = "\x1b[C";
             break;
-        case 38:
-            if (ya.ctrlKey) {
+        case 38: // ^
+            if (event.ctrlKey) {
                 this.scroll_disp(-1);
             } else {
-                pa = "\x1b[A";
+                str = "\x1b[A";
             }
             break;
-        case 40:
-            if (ya.ctrlKey) {
+        case 40: // V
+            if (event.ctrlKey) {
                 this.scroll_disp(1);
             } else {
-                pa = "\x1b[B";
+                str = "\x1b[B";
             }
             break;
-        case 46:
-            pa = "\x1b[3~";
+        case 46: //delete
+            str = "\x1b[3~";
             break;
-        case 45:
-            pa = "\x1b[2~";
+        case 45: //insert
+            str = "\x1b[2~";
             break;
-        case 36:
-            pa = "\x1bOH";
+        case 36: //home
+            str = "\x1bOH";
             break;
-        case 35:
-            pa = "\x1bOF";
+        case 35: //end
+            str = "\x1bOF";
             break;
-        case 33:
-            if (ya.ctrlKey) {
+        case 33: //pgup
+            if (event.ctrlKey) {
                 this.scroll_disp(-(this.h - 1));
             } else {
-                pa = "\x1b[5~";
+                str = "\x1b[5~";
             }
             break;
-        case 34:
-            if (ya.ctrlKey) {
+        case 34: //pgdown
+            if (event.ctrlKey) {
                 this.scroll_disp(this.h - 1);
             } else {
-                pa = "\x1b[6~";
+                str = "\x1b[6~";
             }
             break;
         default:
-            if (ya.ctrlKey) {
-                if (ya.keyCode >= 65 && ya.keyCode <= 90) {
-                    pa = String.fromCharCode(ya.keyCode - 64);
-                } else if (ya.keyCode == 32) {
-                    pa = String.fromCharCode(0);
+            if (event.ctrlKey) {
+                if (event.keyCode >= 65 && event.keyCode <= 90) {
+                    str = String.fromCharCode(event.keyCode - 64);
+                } else if (event.keyCode == 32) {
+                    str = String.fromCharCode(0);
                 }
-            } else if ((!this.is_mac && ya.altKey) || (this.is_mac && ya.metaKey)) {
-                if (ya.keyCode >= 65 && ya.keyCode <= 90) {
-                    pa = "\x1b" + String.fromCharCode(ya.keyCode + 32);
+            } else if ((!this.is_mac && event.altKey) || (this.is_mac && event.metaKey)) {
+                if (event.keyCode >= 65 && event.keyCode <= 90) {
+                    str = "\x1b" + String.fromCharCode(event.keyCode + 32);
                 }
             }
             break;
     }
-    if (pa) {
-        if (ya.stopPropagation)ya.stopPropagation();
-        if (ya.preventDefault)ya.preventDefault();
+    if (str) {
+        if (event.stopPropagation)
+            event.stopPropagation();
+
+        if (event.preventDefault)
+            event.preventDefault();
+
         this.show_cursor();
         this.key_rep_state = 1;
-        this.key_rep_str = pa;
-        this.handler(pa);
+        this.key_rep_str = str;
+        this.handler(str);
         return false;
     } else {
         this.key_rep_state = 0;
         return true;
     }
 };
-Term.prototype.keyPressHandler = function (ya) {
-    var pa, za;
-    if (ya.stopPropagation)ya.stopPropagation();
-    if (ya.preventDefault)ya.preventDefault();
-    pa = "";
-    if (!("charCode"in ya)) {
-        za = ya.keyCode;
+Term.prototype.keyPressHandler = function (event) {
+    var str, char_code;
+
+    if (event.stopPropagation)
+        event.stopPropagation();
+
+    if (event.preventDefault)
+        event.preventDefault();
+
+    str = "";
+
+    if (!("charCode" in event)) {
+        char_code = event.keyCode;
         if (this.key_rep_state == 1) {
             this.key_rep_state = 2;
             return false;
@@ -448,25 +564,27 @@ Term.prototype.keyPressHandler = function (ya) {
             return false;
         }
     } else {
-        za = ya.charCode;
+        char_code = event.charCode;
     }
-    if (za != 0) {
-        if (!ya.ctrlKey && ((!this.is_mac && !ya.altKey) || (this.is_mac && !ya.metaKey))) {
-            pa = String.fromCharCode(za);
+    if (char_code != 0) {
+        if (!event.ctrlKey && ((!this.is_mac && !event.altKey) || (this.is_mac && !event.metaKey))) {
+            str = String.fromCharCode(char_code);
         }
     }
-    if (pa) {
+    if (str) {
         this.show_cursor();
-        this.handler(pa);
+        this.handler(str);
         return false;
     } else {
         return true;
     }
 };
-Term.prototype.queue_chars = function (pa) {
-    this.output_queue += pa;
-    if (this.output_queue)setTimeout(this.outputHandler.bind(this), 0);
+Term.prototype.queue_chars = function (characters) {
+    this.output_queue += characters;
+    if (this.output_queue)
+        setTimeout(this.outputHandler.bind(this), 0);
 };
+
 Term.prototype.outputHandler = function () {
     if (this.output_queue) {
         this.handler(this.output_queue);

@@ -1,22 +1,22 @@
 "use strict";
 
 function IDE_drive(Gh, Hh, malloc_fun) {
-    var Ih, Jh;
+    var cylinders, sectors;
     this.ide_if = Gh;
     this.bs = Hh;
-    Jh = Hh.get_sector_count();
-    Ih = Jh / (16 * 63);
-    if (Ih > 16383) {
-        Ih = 16383;
+    sectors = Hh.get_sector_count();
+    cylinders = sectors / (16 * 63);
+    if (cylinders > 16383) {
+        cylinders = 16383;
     } else {
-        if (Ih < 2) {
-            Ih = 2;
+        if (cylinders < 2) {
+            cylinders = 2;
         }
     }
-    this.cylinders = Ih;
+    this.cylinders = cylinders;
     this.heads = 16;
     this.sectors = 63;
-    this.nb_sectors = Jh;
+    this.nb_sectors = sectors;
     this.mult_sectors = 128;
     this.feature = 0;
     this.error = 0;
@@ -35,57 +35,59 @@ function IDE_drive(Gh, Hh, malloc_fun) {
     this.io_nb_sectors = 0;
 }
 IDE_drive.prototype.identify = function () {
-    function wh(xh, v) {
-        fa[xh * 2] = v & 0xff;
-        fa[xh * 2 + 1] = (v >> 8) & 0xff;
+    function store_word(word_index, word_value) {
+        io_buffer[word_index * 2] = word_value & 0xff;
+        io_buffer[word_index * 2 + 1] = (word_value >> 8) & 0xff;
     }
 
-    function yh(xh, qa, sg) {
-        var i, v;
-        for (i = 0; i < sg; i++) {
-            if (i < qa.length) {
-                v = qa.charCodeAt(i) & 0xff;
+    function store_string(word_index, string, byte_count) {
+        var i, byte_value;
+        for (i = 0; i < byte_count; i++) {
+            if (i < string.length) {
+                byte_value = string.charCodeAt(i) & 0xff;
             } else {
-                v = 32;
+                byte_value = 32;
             }
-            fa[xh * 2 + (i ^ 1)] = v;
+            io_buffer[word_index * 2 + (i ^ 1)] = byte_value;
         }
     }
 
-    var fa, i, zh;
-    fa = this.io_buffer;
-    for (i = 0; i < 512; i++)fa[i] = 0;
-    wh(0, 0x0040);
-    wh(1, this.cylinders);
-    wh(3, this.heads);
-    wh(4, 512 * this.sectors);
-    wh(5, 512);
-    wh(6, this.sectors);
-    wh(20, 3);
-    wh(21, 512);
-    wh(22, 4);
-    yh(27, "JSLinux HARDDISK", 40);
-    wh(47, 0x8000 | 128);
-    wh(48, 0);
-    wh(49, 1 << 9);
-    wh(51, 0x200);
-    wh(52, 0x200);
-    wh(54, this.cylinders);
-    wh(55, this.heads);
-    wh(56, this.sectors);
-    zh = this.cylinders * this.heads * this.sectors;
-    wh(57, zh);
-    wh(58, zh >> 16);
-    if (this.mult_sectors)wh(59, 0x100 | this.mult_sectors);
-    wh(60, this.nb_sectors);
-    wh(61, this.nb_sectors >> 16);
-    wh(80, (1 << 1) | (1 << 2));
-    wh(82, (1 << 14));
-    wh(83, (1 << 14));
-    wh(84, (1 << 14));
-    wh(85, (1 << 14));
-    wh(86, 0);
-    wh(87, (1 << 14));
+    var io_buffer, i, lba_sectors;
+    io_buffer = this.io_buffer;
+    for (i = 0; i < 512; i++)
+        io_buffer[i] = 0;
+    store_word(0, 0x0040);
+    store_word(1, this.cylinders);
+    store_word(3, this.heads);
+    store_word(4, 512 * this.sectors);
+    store_word(5, 512);
+    store_word(6, this.sectors);
+    store_word(20, 3);
+    store_word(21, 512);
+    store_word(22, 4);
+    store_string(27, "JSLinux HARDDISK", 40);
+    store_word(47, 0x8000 | 128);
+    store_word(48, 0);
+    store_word(49, 1 << 9);
+    store_word(51, 0x200);
+    store_word(52, 0x200);
+    store_word(54, this.cylinders);
+    store_word(55, this.heads);
+    store_word(56, this.sectors);
+    lba_sectors = this.cylinders * this.heads * this.sectors;
+    store_word(57, lba_sectors);
+    store_word(58, lba_sectors >> 16);
+    if (this.mult_sectors)
+        store_word(59, 0x100 | this.mult_sectors);
+    store_word(60, this.nb_sectors);
+    store_word(61, this.nb_sectors >> 16);
+    store_word(80, (1 << 1) | (1 << 2));
+    store_word(82, (1 << 14));
+    store_word(83, (1 << 14));
+    store_word(84, (1 << 14));
+    store_word(85, (1 << 14));
+    store_word(86, 0);
+    store_word(87, (1 << 14));
 };
 IDE_drive.prototype.set_signature = function () {
     this.select &= 0xf0;
@@ -103,10 +105,10 @@ IDE_drive.prototype.set_irq = function () {
         this.ide_if.set_irq_func(1);
     }
 };
-IDE_drive.prototype.transfer_start = function (dc, Ah) {
-    this.end_transfer_func = Ah;
+IDE_drive.prototype.transfer_start = function (byte_count, callback) {
+    this.end_transfer_func = callback;
     this.data_index = 0;
-    this.data_end = dc;
+    this.data_end = byte_count;
 };
 IDE_drive.prototype.transfer_stop = function () {
     this.end_transfer_func = this.transfer_stop.bind(this);
@@ -114,38 +116,41 @@ IDE_drive.prototype.transfer_stop = function () {
     this.data_end = 0;
 };
 IDE_drive.prototype.get_sector = function () {
-    var Bh;
+    var retval;
     if (this.select & 0x40) {
-        Bh = ((this.select & 0x0f) << 24) | (this.hcyl << 16) | (this.lcyl << 8) | this.sector;
+        retval = ((this.select & 0x0f) << 24) | (this.hcyl << 16) | (this.lcyl << 8) | this.sector;
     } else {
-        Bh = ((this.hcyl << 8) | this.lcyl) * this.heads * this.sectors + (this.select & 0x0f) * this.sectors + (this.sector - 1);
+        retval = ((this.hcyl << 8) | this.lcyl) * this.heads * this.sectors + (this.select & 0x0f) * this.sectors + (this.sector - 1);
     }
-    return Bh;
+    return retval;
 };
-IDE_drive.prototype.set_sector = function (Bh) {
-    var Ch, r;
+IDE_drive.prototype.set_sector = function (sector_number) {
+    var cylinders, sector;
     if (this.select & 0x40) {
-        this.select = (this.select & 0xf0) | ((Bh >> 24) & 0x0f);
-        this.hcyl = (Bh >> 16) & 0xff;
-        this.lcyl = (Bh >> 8) & 0xff;
-        this.sector = Bh & 0xff;
+        this.select = (this.select & 0xf0) | ((sector_number >> 24) & 0x0f);
+        this.hcyl = (sector_number >> 16) & 0xff;
+        this.lcyl = (sector_number >> 8) & 0xff;
+        this.sector = sector_number & 0xff;
     } else {
-        Ch = Bh / (this.heads * this.sectors);
-        r = Bh % (this.heads * this.sectors);
-        this.hcyl = (Ch >> 8) & 0xff;
-        this.lcyl = Ch & 0xff;
-        this.select = (this.select & 0xf0) | ((r / this.sectors) & 0x0f);
-        this.sector = (r % this.sectors) + 1;
+        cylinders = sector_number / (this.heads * this.sectors);
+        sector = sector_number % (this.heads * this.sectors);
+        this.hcyl = (cylinders >> 8) & 0xff;
+        this.lcyl = cylinders & 0xff;
+        this.select = (this.select & 0xf0) | ((sector / this.sectors) & 0x0f);
+        this.sector = (sector % this.sectors) + 1;
     }
 };
 IDE_drive.prototype.sector_read = function () {
-    var Bh, n, Rg;
-    Bh = this.get_sector();
+    var sector_num, n, Rg;
+    sector_num = this.get_sector();
     n = this.nsector;
-    if (n == 0)n = 256;
-    if (n > this.req_nb_sectors)n = this.req_nb_sectors;
+    if (n == 0)
+        n = 256;
+    if (n > this.req_nb_sectors)
+        n = this.req_nb_sectors;
     this.io_nb_sectors = n;
-    Rg = this.bs.read_async(Bh, this.io_buffer, n, this.sector_read_cb.bind(this));
+
+    Rg = this.bs.read_async(sector_num, this.io_buffer, n, this.sector_read_cb.bind(this));
     if (Rg < 0) {
         this.abort_command();
         this.set_irq();
@@ -157,12 +162,15 @@ IDE_drive.prototype.sector_read = function () {
     }
 };
 IDE_drive.prototype.sector_read_cb = function () {
-    var n, Dh;
-    n = this.io_nb_sectors;
-    this.set_sector(this.get_sector() + n);
-    this.nsector = (this.nsector - n) & 0xff;
-    if (this.nsector == 0)Dh = this.sector_read_cb_end.bind(this); else Dh = this.sector_read.bind(this);
-    this.transfer_start(512 * n, Dh);
+    var sector_count, callback;
+    sector_count = this.io_nb_sectors;
+    this.set_sector(this.get_sector() + sector_count);
+    this.nsector = (this.nsector - sector_count) & 0xff;
+    if (this.nsector == 0)
+        callback = this.sector_read_cb_end.bind(this);
+    else
+        callback = this.sector_read.bind(this);
+    this.transfer_start(512 * sector_count, callback);
     this.set_irq();
     this.status = 0x40 | 0x10 | 0x08;
     this.error = 0;
@@ -173,10 +181,10 @@ IDE_drive.prototype.sector_read_cb_end = function () {
     this.transfer_stop();
 };
 IDE_drive.prototype.sector_write_cb1 = function () {
-    var Bh, Rg;
+    var sector_num, Rg;
     this.transfer_stop();
-    Bh = this.get_sector();
-    Rg = this.bs.write_async(Bh, this.io_buffer, this.io_nb_sectors, this.sector_write_cb2.bind(this));
+    sector_num = this.get_sector();
+    Rg = this.bs.write_async(sector_num, this.io_buffer, this.io_nb_sectors, this.sector_write_cb2.bind(this));
     if (Rg < 0) {
         this.abort_command();
         this.set_irq();
@@ -186,40 +194,46 @@ IDE_drive.prototype.sector_write_cb1 = function () {
         this.status = 0x40 | 0x10 | 0x80;
     }
 };
+
 IDE_drive.prototype.sector_write_cb2 = function () {
-    var n;
-    n = this.io_nb_sectors;
-    this.set_sector(this.get_sector() + n);
-    this.nsector = (this.nsector - n) & 0xff;
+    var sectors;
+    sectors = this.io_nb_sectors;
+    this.set_sector(this.get_sector() + sectors);
+    this.nsector = (this.nsector - sectors) & 0xff;
     if (this.nsector == 0) {
         this.status = 0x40 | 0x10;
     } else {
-        n = this.nsector;
-        if (n > this.req_nb_sectors)n = this.req_nb_sectors;
-        this.io_nb_sectors = n;
-        this.transfer_start(512 * n, this.sector_write_cb1.bind(this));
+        sectors = this.nsector;
+        if (sectors > this.req_nb_sectors)
+            sectors = this.req_nb_sectors;
+        this.io_nb_sectors = sectors;
+        this.transfer_start(512 * sectors, this.sector_write_cb1.bind(this));
         this.status = 0x40 | 0x10 | 0x08;
     }
     this.set_irq();
 };
+
 IDE_drive.prototype.sector_write = function () {
-    var n;
-    n = this.nsector;
-    if (n == 0)n = 256;
-    if (n > this.req_nb_sectors)n = this.req_nb_sectors;
-    this.io_nb_sectors = n;
-    this.transfer_start(512 * n, this.sector_write_cb1.bind(this));
+    var sectors;
+    sectors = this.nsector;
+    if (sectors == 0)
+        sectors = 256;
+    if (sectors > this.req_nb_sectors)
+        sectors = this.req_nb_sectors;
+    this.io_nb_sectors = sectors;
+    this.transfer_start(512 * sectors, this.sector_write_cb1.bind(this));
     this.status = 0x40 | 0x10 | 0x08;
 };
+
 IDE_drive.prototype.identify_cb = function () {
     this.transfer_stop();
     this.status = 0x40;
 };
-IDE_drive.prototype.exec_cmd = function (ja) {
-    var n;
-    switch (ja) {
-        case 0xA1:
-        case 0xEC:
+
+IDE_drive.prototype.exec_cmd = function (byte_command) {
+    switch (byte_command) {
+        case 0xA1: // ATA_CMD_IDENTIFY_PACKET
+        case 0xEC: // ATA_CMD_IDENTIFY
             this.identify();
             this.status = 0x40 | 0x10 | 0x08;
             this.transfer_start(512, this.identify_cb.bind(this));
@@ -240,12 +254,12 @@ IDE_drive.prototype.exec_cmd = function (ja) {
             }
             this.set_irq();
             break;
-        case 0x20:
+        case 0x20: // ATA_CMD_READ_PIO
         case 0x21:
             this.req_nb_sectors = 1;
             this.sector_read();
             break;
-        case 0x30:
+        case 0x30: //ATA_CMD_WRITE_PIO
         case 0x31:
             this.req_nb_sectors = 1;
             this.sector_write();
@@ -279,203 +293,214 @@ IDE_drive.prototype.exec_cmd = function (ja) {
             break;
     }
 };
-function IDE_device(Pg, ia, Kh, mh, Lh, malloc_fun) {
-    var i, Mh;
-    this.set_irq_func = mh;
+function IDE_device(pc_emulator, io_port1, io_port2, set_irq_func, block_readers, malloc_fun) {
+    var i, drive;
+    this.set_irq_func = set_irq_func;
     this.drives = [];
     for (i = 0; i < 2; i++) {
-        if (Lh[i]) {
-            Mh = new IDE_drive(this, Lh[i], malloc_fun);
+        if (block_readers[i]) {
+            drive = new IDE_drive(this, block_readers[i], malloc_fun);
         } else {
-            Mh = null;
+            drive = null;
         }
-        this.drives[i] = Mh;
+        this.drives[i] = drive;
     }
     this.cur_drive = this.drives[0];
-    Pg.register_ioport_write(ia, 8, 1, this.ioport_write.bind(this));
-    Pg.register_ioport_read(ia, 8, 1, this.ioport_read.bind(this));
-    if (Kh) {
-        Pg.register_ioport_read(Kh, 1, 1, this.status_read.bind(this));
-        Pg.register_ioport_write(Kh, 1, 1, this.cmd_write.bind(this));
+    pc_emulator.register_ioport_write(io_port1, 8, 1, this.ioport_write.bind(this));
+    pc_emulator.register_ioport_read(io_port1, 8, 1, this.ioport_read.bind(this));
+    if (io_port2) {
+        pc_emulator.register_ioport_read(io_port2, 1, 1, this.status_read.bind(this));
+        pc_emulator.register_ioport_write(io_port2, 1, 1, this.cmd_write.bind(this));
     }
-    Pg.register_ioport_write(ia, 2, 2, this.data_writew.bind(this));
-    Pg.register_ioport_read(ia, 2, 2, this.data_readw.bind(this));
-    Pg.register_ioport_write(ia, 4, 4, this.data_writel.bind(this));
-    Pg.register_ioport_read(ia, 4, 4, this.data_readl.bind(this));
+    pc_emulator.register_ioport_write(io_port1, 2, 2, this.data_writew.bind(this));
+    pc_emulator.register_ioport_read(io_port1, 2, 2, this.data_readw.bind(this));
+    pc_emulator.register_ioport_write(io_port1, 4, 4, this.data_writel.bind(this));
+    pc_emulator.register_ioport_read(io_port1, 4, 4, this.data_readl.bind(this));
 }
-IDE_device.prototype.ioport_write = function (ia, ja) {
-    var s = this.cur_drive;
-    var Fh;
-    ia &= 7;
-    switch (ia) {
+IDE_device.prototype.ioport_write = function (io_port, byte_value) {
+    var current_drive = this.cur_drive;
+
+    switch (io_port & 7) {
         case 0:
             break;
         case 1:
-            if (s) {
-                s.feature = ja;
+            if (current_drive) {
+                current_drive.feature = byte_value;
             }
             break;
         case 2:
-            if (s) {
-                s.nsector = ja;
+            if (current_drive) {
+                current_drive.nsector = byte_value;
             }
             break;
         case 3:
-            if (s) {
-                s.sector = ja;
+            if (current_drive) {
+                current_drive.sector = byte_value;
             }
             break;
         case 4:
-            if (s) {
-                s.lcyl = ja;
+            if (current_drive) {
+                current_drive.lcyl = byte_value;
             }
             break;
         case 5:
-            if (s) {
-                s.hcyl = ja;
+            if (current_drive) {
+                current_drive.hcyl = byte_value;
             }
             break;
         case 6:
-            s = this.cur_drive = this.drives[(ja >> 4) & 1];
-            if (s) {
-                s.select = ja;
+            current_drive = this.cur_drive = this.drives[(byte_value >> 4) & 1];
+            if (current_drive) {
+                current_drive.select = byte_value;
             }
             break;
-        default:
         case 7:
-            if (s) {
-                s.exec_cmd(ja);
+            if (current_drive) {
+                current_drive.exec_cmd(byte_value);
             }
             break;
     }
 };
-IDE_device.prototype.ioport_read = function (ia) {
-    var s = this.cur_drive;
-    var Rg;
-    ia &= 7;
-    if (!s) {
-        Rg = 0xff;
-    } else {
-        switch (ia) {
-            case 0:
-                Rg = 0xff;
-                break;
-            case 1:
-                Rg = s.error;
-                break;
-            case 2:
-                Rg = s.nsector;
-                break;
-            case 3:
-                Rg = s.sector;
-                break;
-            case 4:
-                Rg = s.lcyl;
-                break;
-            case 5:
-                Rg = s.hcyl;
-                break;
-            case 6:
-                Rg = s.select;
-                break;
-            default:
-            case 7:
-                Rg = s.status;
-                this.set_irq_func(0);
-                break;
-        }
+IDE_device.prototype.ioport_read = function (io_port) {
+    var current_drive = this.cur_drive;
+    var retval;
+
+    if (!current_drive)
+        return 0xff;
+
+    switch (io_port & 7) {
+        case 0:
+            retval = 0xff;
+            break;
+        case 1:
+            retval = current_drive.error;
+            break;
+        case 2:
+            retval = current_drive.nsector;
+            break;
+        case 3:
+            retval = current_drive.sector;
+            break;
+        case 4:
+            retval = current_drive.lcyl;
+            break;
+        case 5:
+            retval = current_drive.hcyl;
+            break;
+        case 6:
+            retval = current_drive.select;
+            break;
+        case 7:
+            retval = current_drive.status;
+            this.set_irq_func(0);
+            break;
     }
-    return Rg;
+
+    return retval;
 };
-IDE_device.prototype.status_read = function (ia) {
-    var s = this.cur_drive;
-    var Rg;
-    if (s) {
-        Rg = s.status;
+IDE_device.prototype.status_read = function (io_port) {
+    var current_drive = this.cur_drive;
+    var status;
+    if (current_drive) {
+        status = current_drive.status;
     } else {
-        Rg = 0;
+        status = 0;
     }
-    return Rg;
+    return status;
 };
-IDE_device.prototype.cmd_write = function (ia, ja) {
-    var i, s;
-    if (!(this.cmd & 0x04) && (ja & 0x04)) {
+
+IDE_device.prototype.cmd_write = function (io_port, byte_value) {
+    var i, drive;
+    if (!(this.cmd & 0x04) && (byte_value & 0x04)) {
         for (i = 0; i < 2; i++) {
-            s = this.drives[i];
-            if (s) {
-                s.status = 0x80 | 0x10;
-                s.error = 0x01;
+            drive = this.drives[i];
+            if (drive) {
+                drive.status = 0x80 | 0x10;
+                drive.error = 0x01;
             }
         }
-    } else if ((this.cmd & 0x04) && !(ja & 0x04)) {
+    } else if ((this.cmd & 0x04) && !(byte_value & 0x04)) {
         for (i = 0; i < 2; i++) {
-            s = this.drives[i];
-            if (s) {
-                s.status = 0x40 | 0x10;
-                s.set_signature();
+            drive = this.drives[i];
+            if (drive) {
+                drive.status = 0x40 | 0x10;
+                drive.set_signature();
             }
         }
     }
+
     for (i = 0; i < 2; i++) {
-        s = this.drives[i];
-        if (s) {
-            s.cmd = ja;
+        drive = this.drives[i];
+        if (drive) {
+            drive.cmd = byte_value;
         }
     }
 };
-IDE_device.prototype.data_writew = function (ia, ja) {
-    var s = this.cur_drive;
+
+IDE_device.prototype.data_writew = function (io_port, word_value) {
+    var current_drive = this.cur_drive;
     var p, fa;
-    if (!s)return;
-    p = s.data_index;
-    fa = s.io_buffer;
-    fa[p] = ja & 0xff;
-    fa[p + 1] = (ja >> 8) & 0xff;
+    if (!current_drive)
+        return;
+    p = current_drive.data_index;
+    fa = current_drive.io_buffer;
+    fa[p] = word_value & 0xff;
+    fa[p + 1] = (word_value >> 8) & 0xff;
     p += 2;
-    s.data_index = p;
-    if (p >= s.data_end)s.end_transfer_func();
+    current_drive.data_index = p;
+    if (p >= current_drive.data_end)
+        current_drive.end_transfer_func();
 };
-IDE_device.prototype.data_readw = function (ia) {
-    var s = this.cur_drive;
-    var p, Rg, fa;
-    if (!s) {
-        Rg = 0;
-    } else {
-        p = s.data_index;
-        fa = s.io_buffer;
-        Rg = fa[p] | (fa[p + 1] << 8);
-        p += 2;
-        s.data_index = p;
-        if (p >= s.data_end)s.end_transfer_func();
-    }
-    return Rg;
+
+IDE_device.prototype.data_readw = function (io_port) {
+    var current_drive = this.cur_drive;
+    var data_index, retval, io_buffer;
+    if (!current_drive)
+        return 0;
+
+    data_index = current_drive.data_index;
+    io_buffer = current_drive.io_buffer;
+    retval = io_buffer[data_index] | (io_buffer[data_index + 1] << 8);
+    data_index += 2;
+    current_drive.data_index = data_index;
+
+    if (data_index >= current_drive.data_end)
+        current_drive.end_transfer_func();
+
+    return retval;
 };
-IDE_device.prototype.data_writel = function (ia, ja) {
-    var s = this.cur_drive;
-    var p, fa;
-    if (!s)return;
-    p = s.data_index;
-    fa = s.io_buffer;
-    fa[p] = ja & 0xff;
-    fa[p + 1] = (ja >> 8) & 0xff;
-    fa[p + 2] = (ja >> 16) & 0xff;
-    fa[p + 3] = (ja >> 24) & 0xff;
-    p += 4;
-    s.data_index = p;
-    if (p >= s.data_end)s.end_transfer_func();
+
+IDE_device.prototype.data_writel = function (io_port, dword_value) {
+    var current_drive = this.cur_drive;
+    var data_index, io_buffer;
+    if (!current_drive)
+        return;
+    data_index = current_drive.data_index;
+    io_buffer = current_drive.io_buffer;
+    io_buffer[data_index] = dword_value & 0xff;
+    io_buffer[data_index + 1] = (dword_value >> 8) & 0xff;
+    io_buffer[data_index + 2] = (dword_value >> 16) & 0xff;
+    io_buffer[data_index + 3] = (dword_value >> 24) & 0xff;
+    data_index += 4;
+    current_drive.data_index = data_index;
+    if (data_index >= current_drive.data_end)
+        current_drive.end_transfer_func();
 };
-IDE_device.prototype.data_readl = function (ia) {
-    var s = this.cur_drive;
-    var p, Rg, fa;
-    if (!s) {
-        Rg = 0;
-    } else {
-        p = s.data_index;
-        fa = s.io_buffer;
-        Rg = fa[p] | (fa[p + 1] << 8) | (fa[p + 2] << 16) | (fa[p + 3] << 24);
-        p += 4;
-        s.data_index = p;
-        if (p >= s.data_end)s.end_transfer_func();
-    }
-    return Rg;
+
+IDE_device.prototype.data_readl = function (io_port) {
+    var current_drive = this.cur_drive;
+    var data_index, retval, io_buffer;
+
+    if (!current_drive)
+        return 0;
+
+    data_index = current_drive.data_index;
+    io_buffer = current_drive.io_buffer;
+    retval = io_buffer[data_index] | (io_buffer[data_index + 1] << 8) | (io_buffer[data_index + 2] << 16) | (io_buffer[data_index + 3] << 24);
+    data_index += 4;
+    current_drive.data_index = data_index;
+    if (data_index >= current_drive.data_end)
+        current_drive.end_transfer_func();
+
+    return retval;
 };

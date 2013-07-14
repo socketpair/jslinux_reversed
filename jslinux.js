@@ -8,112 +8,74 @@
  */
 "use strict";
 
-var term, pc, boot_start_time, init_state;
+function jslinux(clipboard_get, clipboard_set, terminal_container, emulname) {
+    var pc, boot_start_time, start_addr = 0x10000, mem_size = 16 * 1024 * 1024;
 
-function term_start() {
-    term = new Term(80, 30, term_handler);
+    function start2(ret) {
+        if (ret < 0) {
+            alert("kernel loading failed");
+            return;
+        }
+        pc.load_binary("bin/linuxstart.bin", start_addr, start3);
+    }
 
-    term.open();
-}
+    // TODO: automate calculation of preload list...
+    function start3(ret) {
+        var block_list;
+        if (ret < 0)
+            return;
+        block_list = [ 0, 7, 3, 643, 720, 256, 336, 644, 781, 387, 464, 475, 131, 589, 468, 472, 474, 776, 777, 778, 779, 465, 466, 473, 467, 469, 470, 512, 592, 471, 691, 697, 708, 792, 775, 769 ];
+        pc.ide0.drives[0].bs.preload(block_list, start4);
+    }
 
-/* send chars to the serial port */
-function term_handler(str) {
-    pc.serial.send_chars(str);
-}
+    function start4(ret) {
+        var cmdline_addr;
 
-function clipboard_set(val) {
-    var el;
-    el = document.getElementById("text_clipboard");
-    el.value = val;
-}
+        if (ret < 0) {
+            alert("Linux starter load failed");
+            return;
+        }
+        /* set the Linux kernel command line */
+        cmdline_addr = 0xf800;
+        pc.cpu.write_string(cmdline_addr, "console=ttyS0 root=/dev/hda ro init=/sbin/init notsc=1 hdb=none");
 
-function clipboard_get() {
-    var el;
-    el = document.getElementById("text_clipboard");
-    return el.value;
-}
+        pc.cpu.eip = start_addr;
+        pc.cpu.regs[0] = mem_size;
+        /* eax */
+        pc.cpu.regs[3] = 0;
+        /* ebx = initrd_size (no longer used) */
+        pc.cpu.regs[1] = cmdline_addr;
+        /* ecx */
 
-function clear_clipboard() {
-    var el;
-    el = document.getElementById("text_clipboard");
-    el.value = "";
-}
+        boot_start_time = (+new Date());
 
-/* just used to display the boot time in the VM */
-function get_boot_time() {
-    return (+new Date()) - boot_start_time;
-}
+        pc.start();
+    }
 
-function start() {
-    var params;
+    function get_boot_time() {
+        return (+new Date()) - boot_start_time;
+    }
 
-    init_state = new Object();
 
-    params = new Object();
 
-    /* serial output chars */
-    params.serial_write = term.write.bind(term);
+    var term, params = {};
 
-    /* memory size (in bytes) */
-    params.mem_size = 16 * 1024 * 1024;
-
-    /* clipboard I/O */
+    params.mem_size = mem_size;
     params.clipboard_get = clipboard_get;
     params.clipboard_set = clipboard_set;
-
     params.get_boot_time = get_boot_time;
-
-    /* IDE drive. The raw disk image is split into files of
-     * 'block_size' KB. 
-     */
-    params.hda = { url: "bin/hda%d", block_size: 64, nb_blocks: 912 };
-
+    params.hda = {  "url": "bin/hda%d", "nb_blocks": 912, "block_size": 64};
+    params.emulname = emulname;
     pc = new PCEmulator(params);
-
-    init_state.params = params;
+    term = new Term(80, 30, function (str) {
+        // keyboard -> guest
+        pc.com1.send_chars(str);
+    });
+    term.open(terminal_container);
+    // guest -> terminal
+    pc.com1.write_func = term.write.bind(term);
 
     pc.load_binary("bin/vmlinux26.bin", 0x00100000, start2);
+
+    return pc;
 }
-
-function start2(ret) {
-    if (ret < 0)
-        return;
-    init_state.start_addr = 0x10000;
-    pc.load_binary("bin/linuxstart.bin", init_state.start_addr, start3);
-}
-
-// TODO: automate calculation of preload list...
-function start3(ret) {
-    var block_list;
-    if (ret < 0)
-        return;
-    /* Preload blocks so that the boot time does not depend on the
-     * time to load the required disk data (optional) */
-    block_list = [ 0, 7, 3, 643, 720, 256, 336, 644, 781, 387, 464, 475, 131, 589, 468, 472, 474, 776, 777, 778, 779, 465, 466, 473, 467, 469, 470, 512, 592, 471, 691, 697, 708, 792, 775, 769 ];
-    pc.ide0.drives[0].bs.preload(block_list, start4);
-}
-
-function start4(ret) {
-    var cmdline_addr;
-
-    if (ret < 0)
-        return;
-
-    /* set the Linux kernel command line */
-    cmdline_addr = 0xf800;
-    pc.cpu.write_string(cmdline_addr, "console=ttyS0 root=/dev/hda ro init=/sbin/init notsc=1 hdb=none");
-
-    pc.cpu.eip = init_state.start_addr;
-    pc.cpu.regs[0] = init_state.params.mem_size;
-    /* eax */
-    pc.cpu.regs[3] = 0;
-    /* ebx = initrd_size (no longer used) */
-    pc.cpu.regs[1] = cmdline_addr;
-    /* ecx */
-
-    boot_start_time = (+new Date());
-
-    pc.start();
-}
-
-term_start();
