@@ -1,19 +1,18 @@
 /* 
-   PC Emulator wrapper
+ PC Emulator wrapper
 
-   Copyright (c) 2012 Fabrice Bellard
+ Copyright (c) 2012 Fabrice Bellard
 
-   Redistribution or commercial use is prohibited without the author's
-   permission.
-*/
+ Redistribution or commercial use is prohibited without the author's
+ permission.
+ */
 "use strict";
 
-function test_typed_arrays()
-{
+function test_typed_arrays() {
     return (window.Uint8Array &&
-            window.Uint16Array &&
-            window.Int32Array &&
-            window.ArrayBuffer);
+        window.Uint16Array &&
+        window.Int32Array &&
+        window.ArrayBuffer);
 }
 
 if (test_typed_arrays()) {
