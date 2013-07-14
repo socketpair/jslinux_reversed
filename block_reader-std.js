@@ -87,7 +87,7 @@ BlockReader_std.prototype.read_async_cb = function (Vh) {
 BlockReader_std.prototype.add_block = function (Qh, Lg, sg) {
     var Rh, bi, i;
     Rh = this.new_cached_block(Qh);
-    bi = Rh.buf = Ng(this.block_sectors * 512);
+    bi = Rh.buf = malloc_std(this.block_sectors * 512);
     if (typeof Lg == "string") {
         for (i = 0; i < sg; i++)bi[i] = Lg.charCodeAt(i) & 0xff;
     } else {

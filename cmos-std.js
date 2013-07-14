@@ -2,7 +2,7 @@
 
 function CMOS_std(Pg) {
     var Qg, d;
-    Qg = Ng(128);
+    Qg = malloc_std(128);
     this.cmos_data = Qg;
     this.cmos_index = 0;
     d = new Date();

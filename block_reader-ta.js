@@ -87,7 +87,7 @@ BlockReader_ta_.prototype.read_async_cb = function (Vh) {
 BlockReader_ta_.prototype.add_block = function (Qh, Kg, rg) {
     var Rh, bi, i;
     Rh = this.new_cached_block(Qh);
-    bi = Rh.buf = Mg(this.block_sectors * 512);
+    bi = Rh.buf = malloc_ta_(this.block_sectors * 512);
     if (typeof Kg == "string") {
         for (i = 0; i < rg; i++)bi[i] = Kg.charCodeAt(i) & 0xff;
     } else {

@@ -8868,6 +8868,6 @@ CPU_X86.prototype.load_binary = function (Hg, fa, Ig) {
 function Lg(a) {
     return((a / 10) << 4) | (a % 10);
 }
-function Mg(n) {
+function malloc_ta_(n) {
     return new Uint8Array(n);
 }
