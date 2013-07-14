@@ -8865,9 +8865,6 @@ CPU_X86.prototype.load_binary = function (Hg, fa, Ig) {
     };
     load_binary(Hg, Jg);
 };
-function Lg(a) {
-    return((a / 10) << 4) | (a % 10);
-}
-function malloc_ta_(n) {
+CPU_X86.prototype.malloc = function (n) {
     return new Uint8Array(n);
-}
+};

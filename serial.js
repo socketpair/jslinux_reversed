@@ -1,24 +1,24 @@
 "use strict";
 
-function SerialPort_ta_(Og, fa, lh, mh) {
+function SerialPort(Pg, ia, mh, nh) {
     this.divider = 0;
     this.rbr = 0;
     this.ier = 0;
     this.iir = 0x01;
     this.lcr = 0;
-    this.mcr;
+    //this.mcr;
     this.lsr = 0x40 | 0x20;
     this.msr = 0;
     this.scr = 0;
     this.fcr = 0;
-    this.set_irq_func = lh;
-    this.write_func = mh;
+    this.set_irq_func = mh;
+    this.write_func = nh;
     this.tx_fifo = "";
     this.rx_fifo = "";
-    Og.register_ioport_write(0x3f8, 8, 1, this.ioport_write.bind(this));
-    Og.register_ioport_read(0x3f8, 8, 1, this.ioport_read.bind(this));
+    Pg.register_ioport_write(0x3f8, 8, 1, this.ioport_write.bind(this));
+    Pg.register_ioport_read(0x3f8, 8, 1, this.ioport_read.bind(this));
 }
-SerialPort_ta_.prototype.update_irq = function () {
+SerialPort.prototype.update_irq = function () {
     if ((this.lsr & 0x01) && (this.ier & 0x01)) {
         this.iir = 0x04;
     } else if ((this.lsr & 0x20) && (this.ier & 0x02)) {
@@ -32,7 +32,7 @@ SerialPort_ta_.prototype.update_irq = function () {
         this.set_irq_func(0);
     }
 };
-SerialPort_ta_.prototype.write_tx_fifo = function () {
+SerialPort.prototype.write_tx_fifo = function () {
     if (this.tx_fifo != "") {
         this.write_func(this.tx_fifo);
         this.tx_fifo = "";
@@ -41,16 +41,16 @@ SerialPort_ta_.prototype.write_tx_fifo = function () {
         this.update_irq();
     }
 };
-SerialPort_ta_.prototype.ioport_write = function (fa, ga) {
-    fa &= 7;
-    switch (fa) {
-        default:
+SerialPort.prototype.ioport_write = function (ia, ja) {
+    ia &= 7;
+    switch (ia) {
+        //default:
         case 0:
             if (this.lcr & 0x80) {
-                this.divider = (this.divider & 0xff00) | ga;
+                this.divider = (this.divider & 0xff00) | ja;
             } else {
                 if (this.fcr & 0x01) {
-                    this.tx_fifo += String.fromCharCode(ga);
+                    this.tx_fifo += String.fromCharCode(ja);
                     this.lsr &= ~0x20;
                     this.update_irq();
                     if (this.tx_fifo.length >= 16) {
@@ -59,7 +59,7 @@ SerialPort_ta_.prototype.ioport_write = function (fa, ga) {
                 } else {
                     this.lsr &= ~0x20;
                     this.update_irq();
-                    this.write_func(String.fromCharCode(ga));
+                    this.write_func(String.fromCharCode(ja));
                     this.lsr |= 0x20;
                     this.lsr |= 0x40;
                     this.update_irq();
@@ -68,46 +68,50 @@ SerialPort_ta_.prototype.ioport_write = function (fa, ga) {
             break;
         case 1:
             if (this.lcr & 0x80) {
-                this.divider = (this.divider & 0x00ff) | (ga << 8);
+                this.divider = (this.divider & 0x00ff) | (ja << 8);
             } else {
-                this.ier = ga;
+                this.ier = ja;
                 this.update_irq();
             }
             break;
         case 2:
-            if ((this.fcr ^ ga) & 0x01) {
-                ga |= 0x04 | 0x02;
+            if ((this.fcr ^ ja) & 0x01) {
+                ja |= 0x04 | 0x02;
             }
-            if (ga & 0x04)this.tx_fifo = "";
-            if (ga & 0x02)this.rx_fifo = "";
-            this.fcr = ga & 0x01;
+            if (ja & 0x04) {
+                this.tx_fifo = "";
+            }
+            if (ja & 0x02) {
+                this.rx_fifo = "";
+            }
+            this.fcr = ja & 0x01;
             break;
         case 3:
-            this.lcr = ga;
+            this.lcr = ja;
             break;
         case 4:
-            this.mcr = ga;
+            this.mcr = ja;
             break;
         case 5:
             break;
         case 6:
-            this.msr = ga;
+            this.msr = ja;
             break;
         case 7:
-            this.scr = ga;
+            this.scr = ja;
             break;
     }
 };
-SerialPort_ta_.prototype.ioport_read = function (fa) {
-    var Qg;
-    fa &= 7;
-    switch (fa) {
-        default:
+SerialPort.prototype.ioport_read = function (ia) {
+    var Rg;
+    ia &= 7;
+    switch (ia) {
+        //default:
         case 0:
             if (this.lcr & 0x80) {
-                Qg = this.divider & 0xff;
+                Rg = this.divider & 0xff;
             } else {
-                Qg = this.rbr;
+                Rg = this.rbr;
                 this.lsr &= ~(0x01 | 0x10);
                 this.update_irq();
                 this.send_char_from_fifo();
@@ -115,52 +119,54 @@ SerialPort_ta_.prototype.ioport_read = function (fa) {
             break;
         case 1:
             if (this.lcr & 0x80) {
-                Qg = (this.divider >> 8) & 0xff;
+                Rg = (this.divider >> 8) & 0xff;
             } else {
-                Qg = this.ier;
+                Rg = this.ier;
             }
             break;
         case 2:
-            Qg = this.iir;
-            if (this.fcr & 0x01)Qg |= 0xC0;
+            Rg = this.iir;
+            if (this.fcr & 0x01) {
+                Rg |= 0xC0;
+            }
             break;
         case 3:
-            Qg = this.lcr;
+            Rg = this.lcr;
             break;
         case 4:
-            Qg = this.mcr;
+            Rg = this.mcr;
             break;
         case 5:
-            Qg = this.lsr;
+            Rg = this.lsr;
             break;
         case 6:
-            Qg = this.msr;
+            Rg = this.msr;
             break;
         case 7:
-            Qg = this.scr;
+            Rg = this.scr;
             break;
     }
-    return Qg;
+    return Rg;
 };
-SerialPort_ta_.prototype.send_break = function () {
+SerialPort.prototype.send_break = function () {
     this.rbr = 0;
     this.lsr |= 0x10 | 0x01;
     this.update_irq();
 };
-SerialPort_ta_.prototype.send_char = function (nh) {
-    this.rbr = nh;
+SerialPort.prototype.send_char = function (oh) {
+    this.rbr = oh;
     this.lsr |= 0x01;
     this.update_irq();
 };
-SerialPort_ta_.prototype.send_char_from_fifo = function () {
-    var oh;
-    oh = this.rx_fifo;
-    if (oh != "" && !(this.lsr & 0x01)) {
-        this.send_char(oh.charCodeAt(0));
-        this.rx_fifo = oh.substr(1, oh.length - 1);
+SerialPort.prototype.send_char_from_fifo = function () {
+    var ph;
+    ph = this.rx_fifo;
+    if (ph != "" && !(this.lsr & 0x01)) {
+        this.send_char(ph.charCodeAt(0));
+        this.rx_fifo = ph.substr(1, ph.length - 1);
     }
 };
-SerialPort_ta_.prototype.send_chars = function (na) {
-    this.rx_fifo += na;
+SerialPort.prototype.send_chars = function (qa) {
+    this.rx_fifo += qa;
     this.send_char_from_fifo();
 };

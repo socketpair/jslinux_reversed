@@ -1,36 +1,43 @@
 "use strict";
 
-function BlockReader_std(Ig, Oh, Ph) {
-    if (Ig.indexOf("%d") < 0)throw"Invalid URL";
-    if (Ph <= 0 || Oh <= 0)throw"Invalid parameters";
+function BlockReader(Ig, Oh, Ph, malloc_fun) {
+    if (Ig.indexOf("%d") < 0) {
+        throw "Invalid URL";
+    }
+    if (Ph <= 0 || Oh <= 0) {
+        throw "Invalid parameters";
+    }
     this.block_sectors = Oh * 2;
     this.nb_sectors = this.block_sectors * Ph;
     this.url = Ig;
     this.max_cache_size = Math.max(1, Math.ceil(2536 / Oh));
-    this.cache = new Array();
+    this.cache = [];
     this.sector_num = 0;
     this.sector_index = 0;
     this.sector_count = 0;
     this.sector_buf = null;
     this.sector_cb = null;
+    this.malloc_fun = malloc_fun;
 }
-BlockReader_std.prototype.get_sector_count = function () {
+BlockReader.prototype.get_sector_count = function () {
     return this.nb_sectors;
 };
-BlockReader_std.prototype.get_time = function () {
+BlockReader.prototype.get_time = function () {
     return+new Date();
 };
-BlockReader_std.prototype.get_cached_block = function (Qh) {
+BlockReader.prototype.get_cached_block = function (Qh) {
     var Rh, i, Sh = this.cache;
     for (i = 0; i < Sh.length; i++) {
         Rh = Sh[i];
-        if (Rh.block_num == Qh)return Rh;
+        if (Rh.block_num == Qh) {
+            return Rh;
+        }
     }
     return null;
 };
-BlockReader_std.prototype.new_cached_block = function (Qh) {
+BlockReader.prototype.new_cached_block = function (Qh) {
     var Rh, Th, i, j, Uh, Sh = this.cache;
-    Rh = new Object();
+    Rh = {};
     Rh.block_num = Qh;
     Rh.time = this.get_time();
     if (Sh.length < this.max_cache_size) {
@@ -47,14 +54,16 @@ BlockReader_std.prototype.new_cached_block = function (Qh) {
     Sh[j] = Rh;
     return Rh;
 };
-BlockReader_std.prototype.get_url = function (Ig, Qh) {
+BlockReader.prototype.get_url = function (Ig, Qh) {
     var p, s;
     s = Qh.toString();
-    while (s.length < 9)s = "0" + s;
+    while (s.length < 9) {
+        s = "0" + s;
+    }
     p = Ig.indexOf("%d");
     return Ig.substr(0, p) + s + Ig.substring(p + 2, Ig.length);
 };
-BlockReader_std.prototype.read_async_cb = function (Vh) {
+BlockReader.prototype.read_async_cb = function (Vh) {
     var Qh, l, we, Rh, i, Wh, Xh, Yh, Zh;
     var ai, Ig;
     while (this.sector_index < this.sector_count) {
@@ -84,17 +93,21 @@ BlockReader_std.prototype.read_async_cb = function (Vh) {
         this.sector_cb(0);
     }
 };
-BlockReader_std.prototype.add_block = function (Qh, Lg, sg) {
+BlockReader.prototype.add_block = function (Qh, Lg, sg) {
     var Rh, bi, i;
     Rh = this.new_cached_block(Qh);
-    bi = Rh.buf = malloc_std(this.block_sectors * 512);
+    bi = Rh.buf = this.malloc_fun(this.block_sectors * 512);
     if (typeof Lg == "string") {
-        for (i = 0; i < sg; i++)bi[i] = Lg.charCodeAt(i) & 0xff;
+        for (i = 0; i < sg; i++) {
+            bi[i] = Lg.charCodeAt(i) & 0xff;
+        }
     } else {
-        for (i = 0; i < sg; i++)bi[i] = Lg[i];
+        for (i = 0; i < sg; i++) {
+            bi[i] = Lg[i];
+        }
     }
 };
-BlockReader_std.prototype.read_async_cb2 = function (Lg, sg) {
+BlockReader.prototype.read_async_cb2 = function (Lg, sg) {
     var Qh;
     if (sg < 0 || sg != (this.block_sectors * 512)) {
         this.sector_cb(-1);
@@ -104,8 +117,10 @@ BlockReader_std.prototype.read_async_cb2 = function (Lg, sg) {
         this.read_async_cb(false);
     }
 };
-BlockReader_std.prototype.read_async = function (Bh, bi, n, ci) {
-    if ((Bh + n) > this.nb_sectors)return-1;
+BlockReader.prototype.read_async = function (Bh, bi, n, ci) {
+    if ((Bh + n) > this.nb_sectors) {
+        return-1;
+    }
     this.sector_num = Bh;
     this.sector_buf = bi;
     this.sector_index = 0;
@@ -118,7 +133,7 @@ BlockReader_std.prototype.read_async = function (Bh, bi, n, ci) {
         return 1;
     }
 };
-BlockReader_std.prototype.preload = function (fa, Jg) {
+BlockReader.prototype.preload = function (fa, Jg) {
     var i, Ig, Qh;
     if (fa.length == 0) {
         setTimeout(Jg, 0);
@@ -132,16 +147,16 @@ BlockReader_std.prototype.preload = function (fa, Jg) {
         }
     }
 };
-BlockReader_std.prototype.preload_cb = function (Qh, Lg, sg) {
+BlockReader.prototype.preload_cb = function (Qh, Lg, sg) {
     if (sg < 0) {
-    } else {
-        this.add_block(Qh, Lg, sg);
-        this.preload_count--;
-        if (this.preload_count == 0) {
-            this.preload_cb2(0);
-        }
+        return;
+    }
+    this.add_block(Qh, Lg, sg);
+    this.preload_count--;
+    if (this.preload_count == 0) {
+        this.preload_cb2(0);
     }
 };
-BlockReader_std.prototype.write_async = function (Bh, bi, n, ci) {
+BlockReader.prototype.write_async = function (Bh, bi, n, ci) {
     return-1;
 };

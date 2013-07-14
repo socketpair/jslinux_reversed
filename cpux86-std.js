@@ -8901,12 +8901,9 @@ CPU_X86.prototype.load_binary = function (Ig, ia, Jg) {
     };
     load_binary(Ig, Kg);
 };
-function Mg(a) {
-    return((a / 10) << 4) | (a % 10);
-}
-function malloc_std(n) {
+CPU_X86.prototype.malloc = function (n) {
     var fa, i;
     fa = new Array();
     for (i = 0; i < n; i++)fa[i] = 0;
     return fa;
-}
+};

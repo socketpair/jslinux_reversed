@@ -21,3 +21,13 @@ if (test_typed_arrays()) {
     include("cpux86-std.js");
     document.write('<canvas id="dummy_canvas" width="1" height="1"></canvas>');
 }
+
+include("clipboard.js");
+include("cmos.js");
+include("ide.js");
+include("keyboard.js");
+include("pic.js");
+include("pit.js");
+include("serial.js");
+include("block_reader.js");
+include("pcemulator.js");
