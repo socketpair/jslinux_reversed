@@ -1,3 +1,5 @@
+"use strict";
+
 function Keyboard_std(Pg, rh) {
     Pg.register_ioport_read(0x64, 1, 1, this.read_status.bind(this));
     Pg.register_ioport_write(0x64, 1, 1, this.write_command.bind(this));

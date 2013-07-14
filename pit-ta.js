@@ -1,3 +1,5 @@
+"use strict";
+
 function PIT_ta_(Og, bh, ch) {
     var s, i;
     this.pit_channels = new Array();

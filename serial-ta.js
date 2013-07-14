@@ -1,3 +1,5 @@
+"use strict";
+
 function SerialPort_ta_(Og, fa, lh, mh) {
     this.divider = 0;
     this.rbr = 0;

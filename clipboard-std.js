@@ -1,3 +1,5 @@
+"use strict";
+
 function ClipboardDevice_std(Pg, ag, th, nh, uh) {
     Pg.register_ioport_read(ag, 16, 4, this.ioport_readl.bind(this));
     Pg.register_ioport_write(ag, 16, 4, this.ioport_writel.bind(this));

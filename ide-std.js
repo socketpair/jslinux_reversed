@@ -1,3 +1,5 @@
+"use strict";
+
 function IDE_drive_std(Gh, Hh) {
     var Ih, Jh;
     this.ide_if = Gh;

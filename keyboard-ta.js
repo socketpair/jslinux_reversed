@@ -1,3 +1,5 @@
+"use strict";
+
 function Keyboard_ta_(Og, qh) {
     Og.register_ioport_read(0x64, 1, 1, this.read_status.bind(this));
     Og.register_ioport_write(0x64, 1, 1, this.write_command.bind(this));

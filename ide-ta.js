@@ -1,3 +1,5 @@
+"use strict";
+
 function IDE_drive_ta_(Gh, Hh) {
     var Ih, Jh;
     this.ide_if = Gh;

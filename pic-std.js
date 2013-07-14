@@ -1,3 +1,5 @@
+"use strict";
+
 function PIC_sub_std(Pg, ag) {
     Pg.register_ioport_write(ag, 2, 1, this.ioport_write.bind(this));
     Pg.register_ioport_read(ag, 2, 1, this.ioport_read.bind(this));

@@ -1,3 +1,5 @@
+"use strict";
+
 function PIC_sub_ta_(Og, Zf) {
     Og.register_ioport_write(Zf, 2, 1, this.ioport_write.bind(this));
     Og.register_ioport_read(Zf, 2, 1, this.ioport_read.bind(this));

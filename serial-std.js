@@ -1,3 +1,5 @@
+"use strict";
+
 function SerialPort_std(Pg, ia, mh, nh) {
     this.divider = 0;
     this.rbr = 0;
