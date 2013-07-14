@@ -1,0 +1,72 @@
+commit 5ba3b10d1f2a49245252ed44e8b27724f4c39549
+Author: Коренберг Марк (дома) <socketpair@gmail.com>
+Date:   Tue Jul 16 01:28:27 2013 +0600
+
+    2.6.20 compilation fixes
+
+diff --git a/arch/i386/kernel/Makefile b/arch/i386/kernel/Makefile
+index 1e8988e..9365449 100644
+--- a/arch/i386/kernel/Makefile
++++ b/arch/i386/kernel/Makefile
+@@ -56,7 +56,7 @@ targets += vsyscall-note.o vsyscall.lds
+ 
+ # The DSO images are built using a special linker script.
+ quiet_cmd_syscall = SYSCALL $@
+-      cmd_syscall = $(CC) -m elf_i386 -nostdlib $(SYSCFLAGS_$(@F)) \
++      cmd_syscall = $(CC) -m32 -nostdlib $(SYSCFLAGS_$(@F)) \
+ 		          -Wl,-T,$(filter-out FORCE,$^) -o $@
+ 
+ export CPPFLAGS_vsyscall.lds += -P -C -U$(ARCH)
+diff --git a/kernel/mutex.c b/kernel/mutex.c
+index e7cbbb8..9663bff 100644
+--- a/kernel/mutex.c
++++ b/kernel/mutex.c
+@@ -57,7 +57,7 @@ EXPORT_SYMBOL(__mutex_init);
+  * We also put the fastpath first in the kernel image, to make sure the
+  * branch is predicted by the CPU as default-untaken.
+  */
+-static void fastcall noinline __sched
++void fastcall noinline __sched
+ __mutex_lock_slowpath(atomic_t *lock_count);
+ 
+ /***
+@@ -93,7 +93,7 @@ void inline fastcall __sched mutex_lock(struct mutex *lock)
+ 
+ EXPORT_SYMBOL(mutex_lock);
+ 
+-static void fastcall noinline __sched
++void fastcall noinline __sched
+ __mutex_unlock_slowpath(atomic_t *lock_count);
+ 
+ /***
+@@ -189,7 +189,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
+ 	return 0;
+ }
+ 
+-static void fastcall noinline __sched
++void fastcall noinline __sched
+ __mutex_lock_slowpath(atomic_t *lock_count)
+ {
+ 	struct mutex *lock = container_of(lock_count, struct mutex, count);
+@@ -257,7 +257,7 @@ __mutex_unlock_common_slowpath(atomic_t *lock_count, int nested)
+ /*
+  * Release the lock, slowpath:
+  */
+-static fastcall noinline void
++fastcall noinline void
+ __mutex_unlock_slowpath(atomic_t *lock_count)
+ {
+ 	__mutex_unlock_common_slowpath(lock_count, 1);
+diff --git a/scripts/mod/sumversion.c b/scripts/mod/sumversion.c
+index 8a28756..83e7ce3 100644
+--- a/scripts/mod/sumversion.c
++++ b/scripts/mod/sumversion.c
+@@ -381,7 +381,7 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
+ 	struct md4_ctx md;
+ 	char *sources, *end, *fname;
+ 	const char *basename;
+-	char filelist[PATH_MAX + 1];
++	char filelist[256 + 1];
+ 	char *modverdir = getenv("MODVERDIR");
+ 
+ 	if (!modverdir)

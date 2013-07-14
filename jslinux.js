@@ -66,22 +66,23 @@ function start() {
     /* IDE drive. The raw disk image is split into files of
      * 'block_size' KB. 
      */
-    params.hda = { url: "hda%d.bin", block_size: 64, nb_blocks: 912 };
+    params.hda = { url: "bin/hda%d", block_size: 64, nb_blocks: 912 };
 
     pc = new PCEmulator(params);
 
     init_state.params = params;
 
-    pc.load_binary("vmlinux-2.6.20.bin", 0x00100000, start2);
+    pc.load_binary("bin/vmlinux26.bin", 0x00100000, start2);
 }
 
 function start2(ret) {
     if (ret < 0)
         return;
     init_state.start_addr = 0x10000;
-    pc.load_binary("linuxstart.bin", init_state.start_addr, start3);
+    pc.load_binary("bin/linuxstart.bin", init_state.start_addr, start3);
 }
 
+// TODO: automate calculation of preload list...
 function start3(ret) {
     var block_list;
     if (ret < 0)
