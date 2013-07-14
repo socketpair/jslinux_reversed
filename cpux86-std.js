@@ -56,17 +56,23 @@ function CPU_X86() {
     this.tlb_pages = new Array();
     for (i = 0; i < 2048; i++)this.tlb_pages[i] = 0;
     this.tlb_pages_count = 0;
+    this.canvas = document.createElement('canvas');
+    /* is it required ? */
+    this.canvas.width = 1;
+    this.canvas.height = 1;
+
 }
 CPU_X86.prototype.phys_mem_resize = function (ea) {
     this.mem_size = ea;
     ea += ((15 + 3) & ~3);
-    var i, fa, ga, ha;
+    var i, fa, context, canvas;
     this.phys_mem8 = null;
-    ha = document.getElementById("dummy_canvas");
-    if (ha && ha.getContext) {
-        ga = ha.getContext("2d");
-        if (ga && ga.createImageData) {
-            this.phys_mem8 = ga.createImageData(1024, (ea + 4095) >> 12).data;
+    canvas = this.canvas;
+
+    if (canvas && canvas.getContext) {
+        context = canvas.getContext("2d");
+        if (context && context.createImageData) {
+            this.phys_mem8 = context.createImageData(1024, (ea + 4095) >> 12).data;
         }
     }
     if (!this.phys_mem8) {
