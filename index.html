@@ -14,32 +14,57 @@
             color: #000000;
             background: #00ff00;
         }
-
-        #note {
-            font-size: 12px;
-        }
-
-        #copyright {
-            font-size: 10px;
-        }
-
-        #clipboard {
-            font-size: 12px;
-        }
     </style>
+    <script type="text/javascript" src="utils.js"></script>
+    <script type="text/javascript" src="term.js"></script>
+    <script type="text/javascript" src="cpux86-ta.js"></script>
+    <script type="text/javascript" src="clipboard.js"></script>
+    <script type="text/javascript" src="cmos.js"></script>
+    <script type="text/javascript" src="ide.js"></script>
+    <script type="text/javascript" src="keyboard.js"></script>
+    <script type="text/javascript" src="pic.js"></script>
+    <script type="text/javascript" src="pit.js"></script>
+    <script type="text/javascript" src="serial.js"></script>
+    <script type="text/javascript" src="block_reader.js"></script>
+    <script type="text/javascript" src="pcemulator.js"></script>
+    <script type="text/javascript" src="jslinux.js"></script>
+    <script type="text/javascript">
+        function megastart() {
+            var clipboard;
+
+            if (!window.Uint8Array || !window.Uint16Array || !window.Int32Array || !window.ArrayBuffer) {
+                alert("Typed array are not supported. Please use modern browser");
+                return;
+            }
+
+            clipboard = document.getElementById("text_clipboard");
+
+            function clipboard_set(val) {
+                clipboard.value = val;
+            }
+
+            function clipboard_get() {
+                return clipboard.value;
+            }
+
+            var linux1 = jslinux(clipboard_get, clipboard_set, document.getElementById("terminal1"), 'linux1');
+            var linux2 = jslinux(clipboard_get, clipboard_set, document.getElementById("terminal2"), 'linux2');
+
+            linux1.com2.write_func = linux2.com2.send_chars.bind(linux2.com2);
+            linux2.com2.write_func = linux1.com2.send_chars.bind(linux1.com2);
+
+        }
+    </script>
 </head>
-<body onload="start()">
-<table border="0">
-    <tr valign="top">
-        <td>
-            <script type="text/javascript" src="utils.js"></script>
-            <script type="text/javascript" src="term.js"></script>
-            <script type="text/javascript" src="cpux86.js"></script>
-            <script type="text/javascript" src="jslinux.js"></script>
-            <div id="copyright">&copy; 2011 Fabrice Bellard - <a href="news.html">News</a> - <a href="faq.html">FAQ</a>
-                - <a href="tech.html">Technical notes</a></div>
-        <td><input type="button" value="Clear clipboard" onclick="clear_clipboard();"><br><textarea row="4" cols="16"
-                                                                                                    id="text_clipboard"></textarea>
+
+<body onload="megastart()">
+<table>
+    <tr>
+        <td id="terminal1"></td>
+        <td id="terminal2"></td>
+    </tr>
 </table>
+<br>
+<textarea rows="4" cols="16" id="text_clipboard"></textarea>
 </body>
 </html>

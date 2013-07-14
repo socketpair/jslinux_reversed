@@ -1,36 +1,45 @@
 "use strict";
 
-function Zg(Rf) {
-    this.hard_irq = Rf;
+function cpu_set_irq(state) {
+    this.hard_irq = state;
 }
-function di() {
+function get_ticks() {
     return this.cycle_count;
 }
-function PCEmulator(ei) {
-    var cpu, fi, gi, i, p;
+function PCEmulator(parameters) {
+    var cpu, block_readers, hdd_names, i, p;
     cpu = new CPU_X86();
     this.cpu = cpu;
-    cpu.phys_mem_resize(ei.mem_size);
+    cpu.phys_mem_resize(parameters.mem_size);
     this.init_ioports();
     this.register_ioport_write(0x80, 1, 1, this.ioport80_write);
-    this.pic = new PIC(this, 0x20, 0xa0, Zg.bind(cpu));
-    this.pit = new PIT(this, this.pic.set_irq.bind(this.pic, 0), di.bind(cpu));
+    this.pic = new PIC(this, 0x20, 0xa0, cpu_set_irq.bind(cpu));
+    this.pit = new PIT(this, this.pic.set_irq.bind(this.pic, 0), get_ticks.bind(cpu));
     this.cmos = new CMOS(this);
-    this.serial = new SerialPort(this, 0x3f8, this.pic.set_irq.bind(this.pic, 4), ei.serial_write);
+    /*
+     * Most PC-compatible systems in the 1980s and 1990s had one or two ports, with communication interfaces defined like this:
+     COM1: I/O port 0x3F8, IRQ 4
+     COM2: I/O port 0x2F8, IRQ 3
+     COM3: I/O port 0x3E8, IRQ 4
+     COM4: I/O port 0x2E8, IRQ 3
+     * */
+    this.com1 = new SerialPort(this, 0x3f8, this.pic.set_irq.bind(this.pic, 4), parameters.emulname);
+    this.com2 = new SerialPort(this, 0x2f8, this.pic.set_irq.bind(this.pic, 3), parameters.emulname);
+
     this.kbd = new Keyboard(this, this.reset.bind(this));
     this.reset_request = 0;
-    gi = ["hda", "hdb"];
-    fi = [];
-    for (i = 0; i < gi.length; i++) {
-        p = ei[gi[i]];
-        fi[i] = null;
+    hdd_names = ["hda", "hdb"];
+    block_readers = [];
+    for (i = 0; i < hdd_names.length; i++) {
+        p = parameters[hdd_names[i]];
+        block_readers[i] = null;
         if (p) {
-            fi[i] = new BlockReader(p.url, p.block_size, p.nb_blocks, cpu.malloc);
+            block_readers[i] = new BlockReader(p.url, p.block_size, p.nb_blocks, cpu.malloc);
         }
     }
-    this.ide0 = new IDE_device(this, 0x1f0, 0x3f6, this.pic.set_irq.bind(this.pic, 14), fi, cpu.malloc);
-    if (ei.clipboard_get && ei.clipboard_set) {
-        this.jsclipboard = new ClipboardDevice(this, 0x3c0, ei.clipboard_get, ei.clipboard_set, ei.get_boot_time);
+    this.ide0 = new IDE_device(this, 0x1f0, 0x3f6, this.pic.set_irq.bind(this.pic, 14), block_readers, cpu.malloc);
+    if (parameters.clipboard_get && parameters.clipboard_set) {
+        this.jsclipboard = new ClipboardDevice(this, 0x3c0, parameters.clipboard_get, parameters.clipboard_set, parameters.get_boot_time);
     }
     cpu.ld8_port = this.ld8_port.bind(this);
     cpu.ld16_port = this.ld16_port.bind(this);
@@ -40,25 +49,26 @@ function PCEmulator(ei) {
     cpu.st32_port = this.st32_port.bind(this);
     cpu.get_hard_intno = this.pic.get_hard_intno.bind(this.pic);
 }
-PCEmulator.prototype.load_binary = function (Ig, ka, Jg) {
-    return this.cpu.load_binary(Ig, ka, Jg);
+PCEmulator.prototype.load_binary = function (url, address, callback) {
+    return this.cpu.load_binary(url, address, callback);
 };
 PCEmulator.prototype.start = function () {
     setTimeout(this.timer_func.bind(this), 10);
 };
 PCEmulator.prototype.timer_func = function () {
-    var Oa, hi, ii, ji, ki, Pg, za;
-    Pg = this;
-    za = Pg.cpu;
-    ii = za.cycle_count + 100000;
+    var Oa, ii, ji, ki, this_, cpu;
+    this_ = this;
+    cpu = this_.cpu;
+    ii = cpu.cycle_count + 100000;
     ji = false;
     ki = false;
-    while (za.cycle_count < ii) {
-        Pg.serial.write_tx_fifo();
-        Pg.pit.update_irq();
-        Oa = za.exec(ii - za.cycle_count);
+    while (cpu.cycle_count < ii) {
+        this_.com1.write_tx_fifo();
+        this_.com2.write_tx_fifo();
+        this_.pit.update_irq();
+        Oa = cpu.exec(ii - cpu.cycle_count);
         if (Oa == 256) {
-            if (Pg.reset_request) {
+            if (this_.reset_request) {
                 ji = true;
                 break;
             }
@@ -97,98 +107,100 @@ PCEmulator.prototype.init_ioports = function () {
         this.ioport_writel_table[i] = this.default_ioport_writel;
     }
 };
-PCEmulator.prototype.default_ioport_readb = function (ag) {
+PCEmulator.prototype.default_ioport_readb = function (io_port) {
+    return 0xff;
+};
+PCEmulator.prototype.default_ioport_readw = function (io_port) {
+    var retval_word;
+    retval_word = this.ioport_readb_table[io_port](io_port);
+
+    io_port = (io_port + 1) & (1024 - 1);
+
+    retval_word |= this.ioport_readb_table[io_port](io_port) << 8;
+
+    return retval_word;
+};
+PCEmulator.prototype.default_ioport_readl = function (io_port) {
+    return -1;
+};
+PCEmulator.prototype.default_ioport_writeb = function (io_port, byte_value) {
+};
+PCEmulator.prototype.default_ioport_writew = function (io_port, word_value) {
+    this.ioport_writeb_table[io_port](io_port, word_value & 0xff);
+    io_port = (io_port + 1) & (1024 - 1);
+    this.ioport_writeb_table[io_port](io_port, (word_value >> 8) & 0xff);
+};
+PCEmulator.prototype.default_ioport_writel = function (io_port, dwrod_value) {
+};
+
+PCEmulator.prototype.ld8_port = function (io_port) {
     var ja;
-    ja = 0xff;
+    ja = this.ioport_readb_table[io_port & (1024 - 1)](io_port);
     return ja;
 };
-PCEmulator.prototype.default_ioport_readw = function (ag) {
+PCEmulator.prototype.ld16_port = function (io_port) {
     var ja;
-    ja = this.ioport_readb_table[ag](ag);
-    ag = (ag + 1) & (1024 - 1);
-    ja |= this.ioport_readb_table[ag](ag) << 8;
+    ja = this.ioport_readw_table[io_port & (1024 - 1)](io_port);
     return ja;
 };
-PCEmulator.prototype.default_ioport_readl = function (ag) {
+PCEmulator.prototype.ld32_port = function (io_port) {
     var ja;
-    ja = -1;
+    ja = this.ioport_readl_table[io_port & (1024 - 1)](io_port);
     return ja;
 };
-PCEmulator.prototype.default_ioport_writeb = function (ag, ja) {
+PCEmulator.prototype.st8_port = function (io_port, byte_value) {
+    this.ioport_writeb_table[io_port & (1024 - 1)](io_port, byte_value);
 };
-PCEmulator.prototype.default_ioport_writew = function (ag, ja) {
-    this.ioport_writeb_table[ag](ag, ja & 0xff);
-    ag = (ag + 1) & (1024 - 1);
-    this.ioport_writeb_table[ag](ag, (ja >> 8) & 0xff);
+PCEmulator.prototype.st16_port = function (io_port, word_value) {
+    this.ioport_writew_table[io_port & (1024 - 1)](io_port, word_value);
 };
-PCEmulator.prototype.default_ioport_writel = function (ag, ja) {
+PCEmulator.prototype.st32_port = function (io_port, dword_value) {
+    this.ioport_writel_table[io_port & (1024 - 1)](io_port, dword_value);
 };
-PCEmulator.prototype.ld8_port = function (ag) {
-    var ja;
-    ja = this.ioport_readb_table[ag & (1024 - 1)](ag);
-    return ja;
-};
-PCEmulator.prototype.ld16_port = function (ag) {
-    var ja;
-    ja = this.ioport_readw_table[ag & (1024 - 1)](ag);
-    return ja;
-};
-PCEmulator.prototype.ld32_port = function (ag) {
-    var ja;
-    ja = this.ioport_readl_table[ag & (1024 - 1)](ag);
-    return ja;
-};
-PCEmulator.prototype.st8_port = function (ag, ja) {
-    this.ioport_writeb_table[ag & (1024 - 1)](ag, ja);
-};
-PCEmulator.prototype.st16_port = function (ag, ja) {
-    this.ioport_writew_table[ag & (1024 - 1)](ag, ja);
-};
-PCEmulator.prototype.st32_port = function (ag, ja) {
-    this.ioport_writel_table[ag & (1024 - 1)](ag, ja);
-};
-PCEmulator.prototype.register_ioport_read = function (start, sg, dc, Dh) {
+
+PCEmulator.prototype.register_ioport_read = function (start_io_port, count, op_size, func) {
     var i;
-    switch (dc) {
+    switch (op_size) {
         case 1:
-            for (i = start; i < start + sg; i++) {
-                this.ioport_readb_table[i] = Dh;
+            for (i = start_io_port; i < start_io_port + count; i++) {
+                this.ioport_readb_table[i] = func;
             }
             break;
         case 2:
-            for (i = start; i < start + sg; i += 2) {
-                this.ioport_readw_table[i] = Dh;
+            for (i = start_io_port; i < start_io_port + count; i += 2) {
+                this.ioport_readw_table[i] = func;
             }
             break;
         case 4:
-            for (i = start; i < start + sg; i += 4) {
-                this.ioport_readl_table[i] = Dh;
+            for (i = start_io_port; i < start_io_port + count; i += 4) {
+                this.ioport_readl_table[i] = func;
             }
             break;
     }
 };
-PCEmulator.prototype.register_ioport_write = function (start, sg, dc, Dh) {
+PCEmulator.prototype.register_ioport_write = function (start_io_port, count, op_size, func) {
     var i;
-    switch (dc) {
+    switch (op_size) {
         case 1:
-            for (i = start; i < start + sg; i++) {
-                this.ioport_writeb_table[i] = Dh;
+            for (i = start_io_port; i < start_io_port + count; i++) {
+                this.ioport_writeb_table[i] = func;
             }
             break;
         case 2:
-            for (i = start; i < start + sg; i += 2) {
-                this.ioport_writew_table[i] = Dh;
+            for (i = start_io_port; i < start_io_port + count; i += 2) {
+                this.ioport_writew_table[i] = func;
             }
             break;
         case 4:
-            for (i = start; i < start + sg; i += 4) {
-                this.ioport_writel_table[i] = Dh;
+            for (i = start_io_port; i < start_io_port + count; i += 4) {
+                this.ioport_writel_table[i] = func;
             }
             break;
     }
 };
-PCEmulator.prototype.ioport80_write = function (ia, Lg) {
+PCEmulator.prototype.ioport80_write = function (io_port, byte_value) {
 };
+
 PCEmulator.prototype.reset = function () {
     this.request_request = 1;
 };

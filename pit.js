@@ -1,6 +1,6 @@
 "use strict";
 
-function PIT_channel(dh) {
+function PIT_channel(get_ticks) {
     this.count = 0;
     this.latched_count = 0;
     this.rw_state = 0;
@@ -8,7 +8,7 @@ function PIT_channel(dh) {
     this.bcd = 0;
     this.gate = 0;
     this.count_load_time = 0;
-    this.get_ticks = dh;
+    this.get_ticks = get_ticks;
     this.pit_time_unit = 1193182 / 2000000;
 }
 PIT_channel.prototype.get_time = function () {
@@ -31,49 +31,38 @@ PIT_channel.prototype.pit_get_count = function () {
     return fh;
 };
 PIT_channel.prototype.pit_get_out = function () {
-    var d, gh;
+    var d, retval;
     d = this.get_time() - this.count_load_time;
     switch (this.mode) {
-        case 0:
-            gh = (d >= this.count) >> 0;
-            break;
         case 1:
-            gh = (d < this.count) >> 0;
+            retval = (d < this.count) >> 0;
             break;
         case 2:
             if ((d % this.count) == 0 && d != 0) {
-                gh = 1;
+                retval = 1;
             } else {
-                gh = 0;
+                retval = 0;
             }
             break;
         case 3:
-            gh = ((d % this.count) < (this.count >> 1)) >> 0;
+            retval = ((d % this.count) < (this.count >> 1)) >> 0;
             break;
         case 4:
         case 5:
-            gh = (d == this.count) >> 0;
+            retval = (d == this.count) >> 0;
             break;
+        case 0:
         default: /* same as 0 */
-            gh = (d >= this.count) >> 0;
+            retval = (d >= this.count) >> 0;
             break;
-
     }
-    return gh;
+    return retval;
 };
 PIT_channel.prototype.get_next_transition_time = function () {
     var d, hh, base, ih;
     d = this.get_time() - this.count_load_time;
     switch (this.mode) {
 
-        case 0:
-        case 1:
-            if (d < this.count) {
-                hh = this.count;
-            } else {
-                return-1;
-            }
-            break;
         case 2:
             base = (d / this.count) * this.count;
             if ((d - base) == 0 && d != 0) {
@@ -105,14 +94,15 @@ PIT_channel.prototype.get_next_transition_time = function () {
                 }
             }
             break;
-        default: /* same as 0 */
+        case 0:
+        case 1:
+        default:
             if (d < this.count) {
                 hh = this.count;
             } else {
                 return-1;
             }
             break;
-
     }
     hh = this.count_load_time + hh;
     return hh;
@@ -125,82 +115,82 @@ PIT_channel.prototype.pit_load_count = function (ja) {
     this.count = ja;
 };
 
-function PIT(Pg, ch, dh) {
-    var s, i;
+function PIT(pc_emulator, set_irq_func, get_ticks) {
+    var channel, i;
     this.pit_channels = [];
     for (i = 0; i < 3; i++) {
-        s = new PIT_channel(dh);
-        this.pit_channels[i] = s;
-        s.mode = 3;
-        s.gate = (i != 2) >> 0;
-        s.pit_load_count(0);
+        channel = new PIT_channel(get_ticks);
+        this.pit_channels[i] = channel;
+        channel.mode = 3;
+        channel.gate = (i != 2) >> 0;
+        channel.pit_load_count(0);
     }
     this.speaker_data_on = 0;
-    this.set_irq = ch;
-    Pg.register_ioport_write(0x40, 4, 1, this.ioport_write.bind(this));
-    Pg.register_ioport_read(0x40, 3, 1, this.ioport_read.bind(this));
-    Pg.register_ioport_read(0x61, 1, 1, this.speaker_ioport_read.bind(this));
-    Pg.register_ioport_write(0x61, 1, 1, this.speaker_ioport_write.bind(this));
+    this.set_irq = set_irq_func;
+    pc_emulator.register_ioport_write(0x40, 4, 1, this.ioport_write.bind(this));
+    pc_emulator.register_ioport_read(0x40, 3, 1, this.ioport_read.bind(this));
+    pc_emulator.register_ioport_read(0x61, 1, 1, this.speaker_ioport_read.bind(this));
+    pc_emulator.register_ioport_write(0x61, 1, 1, this.speaker_ioport_write.bind(this));
 }
-PIT.prototype.ioport_write = function (ia, ja) {
-    var jh, kh, s;
-    ia &= 3;
-    if (ia == 3) {
-        jh = ja >> 6;
-        if (jh == 3) {
+PIT.prototype.ioport_write = function (io_port, byte_value) {
+    var channel_index, kh, channel;
+    io_port &= 3;
+    if (io_port == 3) {
+        channel_index = byte_value >> 6;
+        if (channel_index == 3) {
             return;
         }
-        s = this.pit_channels[jh];
-        kh = (ja >> 4) & 3;
+        channel = this.pit_channels[channel_index];
+        kh = (byte_value >> 4) & 3;
         switch (kh) {
             case 0:
-                s.latched_count = s.pit_get_count();
-                s.rw_state = 4;
+                channel.latched_count = channel.pit_get_count();
+                channel.rw_state = 4;
                 break;
             default:
-                s.mode = (ja >> 1) & 7;
-                s.bcd = ja & 1;
-                s.rw_state = kh - 1;
+                channel.mode = (byte_value >> 1) & 7;
+                channel.bcd = byte_value & 1;
+                channel.rw_state = kh - 1;
                 break;
         }
     } else {
-        s = this.pit_channels[ia];
-        switch (s.rw_state) {
+        channel = this.pit_channels[io_port];
+        switch (channel.rw_state) {
             case 0:
-                s.pit_load_count(ja);
+                channel.pit_load_count(byte_value);
                 break;
             case 1:
-                s.pit_load_count(ja << 8);
+                channel.pit_load_count(byte_value << 8);
                 break;
             case 2:
             case 3:
-                if (s.rw_state & 1) {
-                    s.pit_load_count((s.latched_count & 0xff) | (ja << 8));
+                if (channel.rw_state & 1) {
+                    channel.pit_load_count((channel.latched_count & 0xff) | (byte_value << 8));
                 } else {
-                    s.latched_count = ja;
+                    channel.latched_count = byte_value;
                 }
-                s.rw_state ^= 1;
+                channel.rw_state ^= 1;
                 break;
         }
     }
 };
-PIT.prototype.ioport_read = function (ia) {
-    var Rg, pa, s;
-    ia &= 3;
-    s = this.pit_channels[ia];
-    switch (s.rw_state) {
+PIT.prototype.ioport_read = function (io_port) {
+    var retval, count, channel;
+    io_port &= 3;
+    channel = this.pit_channels[io_port];
+    switch (channel.rw_state) {
         case 0:
         case 1:
         case 2:
         case 3:
-            pa = s.pit_get_count();
-            if (s.rw_state & 1) {
-                Rg = (pa >> 8) & 0xff;
+            count = channel.pit_get_count();
+            if (channel.rw_state & 1) {
+                retval = (count >> 8) & 0xff;
             } else {
-                Rg = pa & 0xff;
+                retval = count & 0xff;
             }
-            if (s.rw_state & 2) {
-                s.rw_state ^= 1;
+            if (channel.rw_state & 2) {
+                channel.rw_state ^= 1;
             }
             break;
         /*
@@ -208,26 +198,28 @@ PIT.prototype.ioport_read = function (ia) {
          case 5:
          */
         default:
-            if (s.rw_state & 1) {
-                Rg = s.latched_count >> 8;
+            if (channel.rw_state & 1) {
+                retval = channel.latched_count >> 8;
             } else {
-                Rg = s.latched_count & 0xff;
+                retval = channel.latched_count & 0xff;
             }
-            s.rw_state ^= 1;
+            channel.rw_state ^= 1;
             break;
     }
-    return Rg;
+    return retval;
 };
-PIT.prototype.speaker_ioport_write = function (ia, ja) {
-    this.speaker_data_on = (ja >> 1) & 1;
-    this.pit_channels[2].gate = ja & 1;
+
+PIT.prototype.speaker_ioport_write = function (io_port, byte_value) {
+    this.speaker_data_on = (byte_value >> 1) & 1;
+    this.pit_channels[2].gate = byte_value & 1;
 };
-PIT.prototype.speaker_ioport_read = function (ia) {
-    var gh, s, ja;
-    s = this.pit_channels[2];
-    gh = s.pit_get_out();
-    ja = (this.speaker_data_on << 1) | s.gate | (gh << 5);
-    return ja;
+
+PIT.prototype.speaker_ioport_read = function (io_port) {
+    var gh, channel, retval;
+    channel = this.pit_channels[2];
+    gh = channel.pit_get_out();
+    retval = (this.speaker_data_on << 1) | channel.gate | (gh << 5);
+    return retval;
 };
 PIT.prototype.update_irq = function () {
     this.set_irq(1);

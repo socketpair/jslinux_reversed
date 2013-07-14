@@ -1,23 +1,64 @@
 "use strict";
 
-function SerialPort(Pg, ia, mh, nh) {
+// TODO: http://www.lammertbies.nl/comm/info/serial-uart.html
+
+function SerialPort(pc_emulator, address, set_irq_func, emulname) {
     this.divider = 0;
     this.rbr = 0;
     this.ier = 0;
     this.iir = 0x01;
+
+    // DLAB=0
     this.lcr = 0;
-    //this.mcr;
+
+    this.mcr = 0;
+
+    // Line status register
+    // '0b1100000'
+    /*
+     0	Data available = 1
+     1	Overrun error = 2
+     2	Parity error = 4
+     3	Framing error = 8
+     4	Break signal received = 0x10
+     5	THR is empty = 0x20
+     6	THR is empty, and line is idle = 0x40
+     7	Errornous data in FIFO = 0x80
+     */
+    // "THR is empty" and  "THR is empty, and line is idle"
     this.lsr = 0x40 | 0x20;
-    this.msr = 0;
+    this.name = emulname;
+
+    /*
+     0	change in Clear to send
+     1	change in Data set ready
+     2	trailing edge Ring indicator
+     3	change in Carrier detect
+     4	Clear to send = 0x10
+     5	Data set ready = 0x20
+     6	Ring indicator = 0x40
+     7	Carrier detect = 0x80
+     */
+    // set Carrier-detect
+    this.msr = 0x80 | 0x10;
+
     this.scr = 0;
     this.fcr = 0;
-    this.set_irq_func = mh;
-    this.write_func = nh;
-    this.tx_fifo = "";
-    this.rx_fifo = "";
-    Pg.register_ioport_write(0x3f8, 8, 1, this.ioport_write.bind(this));
-    Pg.register_ioport_read(0x3f8, 8, 1, this.ioport_read.bind(this));
+    this.set_irq_func = set_irq_func;
+    this.write_func = function() {}; // TODO: STUB
+    this.tx_fifo = ""; // guest -> wire
+    this.rx_fifo = ""; // wire -> guest
+    this.baseaddr = address;
+    pc_emulator.register_ioport_write(address, 8, 1, this.ioport_write.bind(this));
+    pc_emulator.register_ioport_read(address, 8, 1, this.ioport_read.bind(this));
 }
+
+SerialPort.prototype.debug = function() {
+    if (this.baseaddr != 0x2f8)
+        return;
+    console.log(this.name, arguments);
+};
+
 SerialPort.prototype.update_irq = function () {
     if ((this.lsr & 0x01) && (this.ier & 0x01)) {
         this.iir = 0x04;
@@ -41,132 +82,153 @@ SerialPort.prototype.write_tx_fifo = function () {
         this.update_irq();
     }
 };
-SerialPort.prototype.ioport_write = function (ia, ja) {
-    ia &= 7;
-    switch (ia) {
+SerialPort.prototype.ioport_write = function (address, byte_value) {
+    var DLAB = 0x80;
+
+    switch (address & 7) {
         //default:
         case 0:
-            if (this.lcr & 0x80) {
-                this.divider = (this.divider & 0xff00) | ja;
-            } else {
-                if (this.fcr & 0x01) {
-                    this.tx_fifo += String.fromCharCode(ja);
-                    this.lsr &= ~0x20;
-                    this.update_irq();
-                    if (this.tx_fifo.length >= 16) {
-                        this.write_tx_fifo();
-                    }
-                } else {
-                    this.lsr &= ~0x20;
-                    this.update_irq();
-                    this.write_func(String.fromCharCode(ja));
-                    this.lsr |= 0x20;
-                    this.lsr |= 0x40;
-                    this.update_irq();
-                }
+            if (this.lcr & DLAB) {
+                // DLL divisor latch LSB
+                this.divider = (this.divider & 0xff00) | byte_value;
+                break;
             }
-            break;
-        case 1:
-            if (this.lcr & 0x80) {
-                this.divider = (this.divider & 0x00ff) | (ja << 8);
+
+            //write ti BASE+0, DLAB=0
+            // THR transmitter holding
+            if (this.fcr & 0x01) {
+                // if FIFO enabled
+                this.tx_fifo += String.fromCharCode(byte_value);
+                this.lsr &= ~0x20;
+                this.update_irq();
+                if (this.tx_fifo.length >= 16) {
+                    this.write_tx_fifo();
+                }
             } else {
-                this.ier = ja;
+                // if FIFO disabled
+                this.lsr &= ~0x20;
+                this.update_irq();
+                this.write_func(String.fromCharCode(byte_value));
+                this.lsr |= 0x20;
+                this.lsr |= 0x40;
                 this.update_irq();
             }
+
+            break;
+        case 1:
+            if (this.lcr & DLAB) {
+                // DLM divisor latch MSB
+                this.divider = (this.divider & 0x00ff) | (byte_value << 8);
+                break;
+            }
+
+            // IER interrupt enable
+            this.ier = byte_value;
+            this.update_irq();
             break;
         case 2:
-            if ((this.fcr ^ ja) & 0x01) {
-                ja |= 0x04 | 0x02;
+            // FCR FIFO control
+            if ((this.fcr ^ byte_value) & 0x01) {
+                // if fifo state changed, set "Clear receive FIFO" and "Clear transmit FIFO" also.
+                byte_value |= 0x04 | 0x02;
             }
-            if (ja & 0x04) {
+            if (byte_value & 0x04) {
                 this.tx_fifo = "";
             }
-            if (ja & 0x02) {
+            if (byte_value & 0x02) {
                 this.rx_fifo = "";
             }
-            this.fcr = ja & 0x01;
+            this.fcr = byte_value & 0x01;
             break;
         case 3:
-            this.lcr = ja;
+            // LCR line control
+            this.lcr = byte_value;
             break;
         case 4:
-            this.mcr = ja;
+            // MCR modem control
+            this.mcr = byte_value;
             break;
         case 5:
+            this.debug('Factory UART test is not implemented');
             break;
         case 6:
-            this.msr = ja;
+            this.debug('Unknown UART write operation BASE+6');
             break;
         case 7:
-            this.scr = ja;
+            // SCR scratch
+            this.scr = byte_value;
             break;
     }
 };
-SerialPort.prototype.ioport_read = function (ia) {
-    var Rg;
-    ia &= 7;
-    switch (ia) {
+SerialPort.prototype.ioport_read = function (port_offset) {
+    var returned_byte_value, DLAB = 0x80;
+    port_offset &= 7;
+    switch (port_offset) {
         //default:
         case 0:
-            if (this.lcr & 0x80) {
-                Rg = this.divider & 0xff;
+            if (this.lcr & DLAB) {
+                returned_byte_value = this.divider & 0xff;
             } else {
-                Rg = this.rbr;
+                returned_byte_value = this.rbr;
                 this.lsr &= ~(0x01 | 0x10);
                 this.update_irq();
                 this.send_char_from_fifo();
             }
             break;
         case 1:
-            if (this.lcr & 0x80) {
-                Rg = (this.divider >> 8) & 0xff;
+            if (this.lcr & DLAB) {
+                // DLM divisor latch MSB
+                returned_byte_value = (this.divider >> 8) & 0xff;
             } else {
-                Rg = this.ier;
+                // IER interrupt enable
+                returned_byte_value = this.ier;
             }
             break;
         case 2:
-            Rg = this.iir;
+            // IIR interrupt identification
+            returned_byte_value = this.iir;
             if (this.fcr & 0x01) {
-                Rg |= 0xC0;
+                // if FIFO enabled, mark in iir that FIFO enabled
+                returned_byte_value |= 0xc0;
             }
             break;
         case 3:
-            Rg = this.lcr;
+            returned_byte_value = this.lcr;
             break;
         case 4:
-            Rg = this.mcr;
+            returned_byte_value = this.mcr;
             break;
         case 5:
-            Rg = this.lsr;
+            returned_byte_value = this.lsr;
             break;
         case 6:
-            Rg = this.msr;
+            returned_byte_value = this.msr;
             break;
         case 7:
-            Rg = this.scr;
+            returned_byte_value = this.scr;
             break;
     }
-    return Rg;
+    return returned_byte_value;
 };
 SerialPort.prototype.send_break = function () {
     this.rbr = 0;
     this.lsr |= 0x10 | 0x01;
     this.update_irq();
 };
-SerialPort.prototype.send_char = function (oh) {
-    this.rbr = oh;
+SerialPort.prototype.send_char = function (byte_value) {
+    this.rbr = byte_value;
     this.lsr |= 0x01;
     this.update_irq();
 };
 SerialPort.prototype.send_char_from_fifo = function () {
-    var ph;
-    ph = this.rx_fifo;
-    if (ph != "" && !(this.lsr & 0x01)) {
-        this.send_char(ph.charCodeAt(0));
-        this.rx_fifo = ph.substr(1, ph.length - 1);
+    var rx_fifo = this.rx_fifo;
+
+    if (rx_fifo != "" && !(this.lsr & 0x01)) {
+        this.send_char(rx_fifo.charCodeAt(0));
+        this.rx_fifo = rx_fifo.substr(1, rx_fifo.length - 1);
     }
 };
-SerialPort.prototype.send_chars = function (qa) {
-    this.rx_fifo += qa;
+SerialPort.prototype.send_chars = function (str) {
+    this.rx_fifo += str;
     this.send_char_from_fifo();
 };

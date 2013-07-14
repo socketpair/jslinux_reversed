@@ -1,63 +1,68 @@
 "use strict";
 
-function ClipboardDevice(Pg, ag, th, nh, uh) {
-    Pg.register_ioport_read(ag, 16, 4, this.ioport_readl.bind(this));
-    Pg.register_ioport_write(ag, 16, 4, this.ioport_writel.bind(this));
-    Pg.register_ioport_read(ag + 8, 1, 1, this.ioport_readb.bind(this));
-    Pg.register_ioport_write(ag + 8, 1, 1, this.ioport_writeb.bind(this));
+function ClipboardDevice(pc_emulator, io_port, read_func, write_func, get_boot_time) {
+    pc_emulator.register_ioport_read(io_port, 16, 4, this.ioport_readl.bind(this));
+    pc_emulator.register_ioport_write(io_port, 16, 4, this.ioport_writel.bind(this));
+    pc_emulator.register_ioport_read(io_port + 8, 1, 1, this.ioport_readb.bind(this));
+    pc_emulator.register_ioport_write(io_port + 8, 1, 1, this.ioport_writeb.bind(this));
     this.cur_pos = 0;
     this.doc_str = "";
-    this.read_func = th;
-    this.write_func = nh;
-    this.get_boot_time = uh;
+    this.read_func = read_func;
+    this.write_func = write_func;
+    this.get_boot_time = get_boot_time;
 }
-ClipboardDevice.prototype.ioport_writeb = function (ia, ja) {
-    this.doc_str += String.fromCharCode(ja);
+ClipboardDevice.prototype.ioport_writeb = function (io_port, byte_value) {
+    this.doc_str += String.fromCharCode(byte_value);
 };
-ClipboardDevice.prototype.ioport_readb = function (ia) {
-    var c, qa, ja;
-    qa = this.doc_str;
-    if (this.cur_pos < qa.length) {
-        ja = qa.charCodeAt(this.cur_pos) & 0xff;
+ClipboardDevice.prototype.ioport_readb = function (io_port) {
+    var doc_str, retval_byte;
+    doc_str = this.doc_str;
+    if (this.cur_pos < doc_str.length) {
+        retval_byte = doc_str.charCodeAt(this.cur_pos) & 0xff;
     } else {
-        ja = 0;
+        retval_byte = 0;
     }
     this.cur_pos++;
-    return ja;
+    return retval_byte;
 };
-ClipboardDevice.prototype.ioport_writel = function (ia, ja) {
-    var qa;
-    ia = (ia >> 2) & 3;
-    switch (ia) {
+ClipboardDevice.prototype.ioport_writel = function (io_port, dword_value) {
+    var text;
+    io_port = (io_port >> 2) & 3;
+    switch (io_port) {
         case 0:
-            this.doc_str = this.doc_str.substr(0, ja >>> 0);
+            this.doc_str = this.doc_str.substr(0, dword_value >>> 0);
             break;
         case 1:
-            return this.cur_pos = ja >>> 0;
+            this.cur_pos = dword_value >>> 0;
+            break;
         case 2:
-            qa = String.fromCharCode(ja & 0xff) + String.fromCharCode((ja >> 8) & 0xff) + String.fromCharCode((ja >> 16) & 0xff) + String.fromCharCode((ja >> 24) & 0xff);
-            this.doc_str += qa;
+            text = String.fromCharCode(dword_value & 0xff) +
+                String.fromCharCode((dword_value >> 8) & 0xff) +
+                String.fromCharCode((dword_value >> 16) & 0xff) +
+                String.fromCharCode((dword_value >> 24) & 0xff);
+            this.doc_str += text;
             break;
         case 3:
             this.write_func(this.doc_str);
             break;
     }
 };
-ClipboardDevice.prototype.ioport_readl = function (ia) {
-    var ja;
-    ia = (ia >> 2) & 3;
-    switch (ia) {
+ClipboardDevice.prototype.ioport_readl = function (io_port) {
+    var retval_dword;
+    io_port = (io_port >> 2) & 3;
+    switch (io_port) {
         case 0:
             this.doc_str = this.read_func();
             return this.doc_str.length >> 0;
         case 1:
             return this.cur_pos >> 0;
         case 2:
-            ja = this.ioport_readb(0);
-            ja |= this.ioport_readb(0) << 8;
-            ja |= this.ioport_readb(0) << 16;
-            ja |= this.ioport_readb(0) << 24;
-            return ja;
+            retval_dword = this.ioport_readb(0);
+            retval_dword |= this.ioport_readb(0) << 8;
+            retval_dword |= this.ioport_readb(0) << 16;
+            retval_dword |= this.ioport_readb(0) << 24;
+            return retval_dword;
+        default:
         case 3:
             if (this.get_boot_time) {
                 return this.get_boot_time() >> 0;
