@@ -1,3 +1,5 @@
+"use strict";
+
 function BlockReader_std(Ig, Oh, Ph) {
     if (Ig.indexOf("%d") < 0)throw"Invalid URL";
     if (Ph <= 0 || Oh <= 0)throw"Invalid parameters";

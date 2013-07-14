@@ -1,3 +1,5 @@
+"use strict";
+
 function ClipboardDevice_ta_(Og, Zf, sh, mh, th) {
     Og.register_ioport_read(Zf, 16, 4, this.ioport_readl.bind(this));
     Og.register_ioport_write(Zf, 16, 4, this.ioport_writel.bind(this));

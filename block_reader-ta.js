@@ -1,3 +1,5 @@
+"use strict";
+
 function BlockReader_ta_(Hg, Oh, Ph) {
     if (Hg.indexOf("%d") < 0)throw"Invalid URL";
     if (Ph <= 0 || Oh <= 0)throw"Invalid parameters";

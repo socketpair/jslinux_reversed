@@ -1,3 +1,5 @@
+"use strict";
+
 function PIT_std(Pg, ch, dh) {
     var s, i;
     this.pit_channels = new Array();

@@ -1,3 +1,5 @@
+"use strict";
+
 function CMOS_ta_(Og) {
     var Pg, d;
     Pg = Mg(128);

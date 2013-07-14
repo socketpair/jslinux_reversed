@@ -1,3 +1,5 @@
+"use strict";
+
 function Yg(Qf) {
     this.hard_irq = Qf;
 }

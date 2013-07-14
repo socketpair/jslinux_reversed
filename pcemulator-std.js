@@ -1,3 +1,5 @@
+"use strict";
+
 function Zg(Rf) {
     this.hard_irq = Rf;
 }

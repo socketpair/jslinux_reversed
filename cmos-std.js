@@ -1,3 +1,5 @@
+"use strict";
+
 function CMOS_std(Pg) {
     var Qg, d;
     Qg = Ng(128);
