@@ -19,7 +19,6 @@ if (test_typed_arrays()) {
     include("cpux86-ta.js");
 } else {
     include("cpux86-std.js");
-    document.write('<canvas id="dummy_canvas" width="1" height="1"></canvas>');
 }
 
 include("clipboard.js");
