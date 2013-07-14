@@ -21,7 +21,7 @@ function IDE_drive_ta_(Gh, Hh) {
     this.select = 0xa0;
     this.status = 0x40 | 0x10;
     this.cmd = 0;
-    this.io_buffer = Mg(128 * 512 + 4);
+    this.io_buffer = malloc_ta_(128 * 512 + 4);
     this.data_index = 0;
     this.data_end = 0;
     this.end_transfer_func = this.transfer_stop.bind(this);

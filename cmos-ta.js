@@ -2,7 +2,7 @@
 
 function CMOS_ta_(Og) {
     var Pg, d;
-    Pg = Mg(128);
+    Pg = malloc_ta_(128);
     this.cmos_data = Pg;
     this.cmos_index = 0;
     d = new Date();

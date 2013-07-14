@@ -8904,7 +8904,7 @@ CPU_X86.prototype.load_binary = function (Ig, ia, Jg) {
 function Mg(a) {
     return((a / 10) << 4) | (a % 10);
 }
-function Ng(n) {
+function malloc_std(n) {
     var fa, i;
     fa = new Array();
     for (i = 0; i < n; i++)fa[i] = 0;
