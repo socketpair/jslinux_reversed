@@ -166,3 +166,5 @@ BlockReader.prototype.preload_cb = function (block_number, data, data_len) {
 BlockReader.prototype.write_async = function (sector_num, buf, sector_count, callback) {
     return -1;
 };
+
+self.BlockReader = BlockReader;

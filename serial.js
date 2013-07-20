@@ -234,3 +234,5 @@ SerialPort.prototype.send_chars = function (str) {
     this.rx_fifo += str;
     this.send_char_from_fifo();
 };
+
+self.SerialPort = SerialPort;

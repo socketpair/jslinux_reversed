@@ -71,7 +71,7 @@ function load_binary(url, callback) {
 
     is_ie = (typeof ActiveXObject == "function");
     if (!is_ie) {
-        typed_array = ('ArrayBuffer' in window && 'Uint8Array' in window);
+        typed_array = ((typeof ArrayBuffer != 'undefined') && (typeof Uint8Array != 'undefined'));
         if (typed_array && 'mozResponseType' in req) {
             /* firefox 6 beta */
             req.mozResponseType = 'arraybuffer';
@@ -86,3 +86,4 @@ function load_binary(url, callback) {
     req.send(null);
 }
 
+self.load_binary = load_binary;

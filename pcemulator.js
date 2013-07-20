@@ -204,3 +204,5 @@ PCEmulator.prototype.ioport80_write = function (io_port, byte_value) {
 PCEmulator.prototype.reset = function () {
     this.reset_request = 1;
 };
+
+self.PCEmulator = PCEmulator;

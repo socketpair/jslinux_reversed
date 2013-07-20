@@ -17,3 +17,5 @@ Keyboard.prototype.write_command = function (io_port, byte_value) {
             break;
     }
 };
+
+self.Keyboard = Keyboard;

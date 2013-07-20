@@ -45,3 +45,5 @@ CMOS.prototype.ioport_read = function (io_port) {
     }
     return retval;
 };
+
+self.CMOS = CMOS;

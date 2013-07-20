@@ -225,3 +225,5 @@ PIT.prototype.update_irq = function () {
     this.set_irq(1);
     this.set_irq(0);
 };
+
+self.PIT = PIT;

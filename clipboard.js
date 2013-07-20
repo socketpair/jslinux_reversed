@@ -71,3 +71,5 @@ ClipboardDevice.prototype.ioport_readl = function (io_port) {
             }
     }
 };
+
+self.ClipboardDevice = ClipboardDevice;

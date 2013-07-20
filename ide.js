@@ -504,3 +504,5 @@ IDE_device.prototype.data_readl = function (io_port) {
 
     return retval;
 };
+
+self.IDE_device = IDE_device;

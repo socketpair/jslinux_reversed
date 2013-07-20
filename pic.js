@@ -235,3 +235,5 @@ PIC.prototype.get_hard_intno = function () {
     this.update_irq();
     return intno;
 };
+
+self.PIC = PIC;

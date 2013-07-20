@@ -8,7 +8,7 @@
  */
 "use strict";
 
-function jslinux(clipboard_get, clipboard_set, emulname) {
+function jslinux(clipboard_get, clipboard_set, emulname, bin_prefix) {
     var pc, boot_start_time, start_addr = 0x10000, mem_size = 16 * 1024 * 1024;
 
     function start2(ret) {
@@ -16,7 +16,7 @@ function jslinux(clipboard_get, clipboard_set, emulname) {
             alert("kernel loading failed");
             return;
         }
-        pc.load_binary("bin/linuxstart.bin", start_addr, start3);
+        pc.load_binary(bin_prefix + "/linuxstart.bin", start_addr, start4);
     }
 
     // TODO: automate calculation of preload list...
@@ -64,11 +64,13 @@ function jslinux(clipboard_get, clipboard_set, emulname) {
     params.clipboard_get = clipboard_get;
     params.clipboard_set = clipboard_set;
     params.get_boot_time = get_boot_time;
-    params.hda = {  "url": "bin/hda%d", "nb_blocks": 912, "block_size": 64};
+    params.hda = {  "url": bin_prefix + "/hda%d", "nb_blocks": 120 * 1024 / 64, "block_size": 64};
     params.emulname = emulname;
     pc = new PCEmulator(params);
 
-    pc.load_binary("bin/vmlinux26.bin", 0x00100000, start2);
+    pc.load_binary(bin_prefix + "/vmlinux26.bin", 0x00100000, start2);
 
     return pc;
 }
+
+self.jslinux = jslinux;

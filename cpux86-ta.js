@@ -8895,3 +8895,5 @@ CPU_X86.prototype.load_binary = function (url, address, callback) {
 CPU_X86.prototype.malloc = function (n) {
     return new Uint8Array(n);
 };
+
+self.CPU_X86 = CPU_X86;
