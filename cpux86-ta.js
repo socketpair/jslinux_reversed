@@ -57,6 +57,10 @@ function CPU_X86() {
     this.tlb_pages = new Int32Array(2048);
     this.tlb_pages_count = 0;
 }
+
+CPU_X86.prototype.log = function () {
+};
+
 CPU_X86.prototype.phys_mem_resize = function (new_size) {
     this.mem_size = new_size;
     new_size += ((15 + 3) & ~3);
@@ -172,13 +176,13 @@ function to_hex_u16(n) {
     return to_hex(n, 4);
 }
 CPU_X86.prototype.dump_short = function () {
-    console.log("" +
+    this.log("" +
         " EIP=" + to_hex_u32(this.eip) +
         " EAX=" + to_hex_u32(this.regs[0]) +
         " ECX=" + to_hex_u32(this.regs[1]) +
         " EDX=" + to_hex_u32(this.regs[2]) +
         " EBX=" + to_hex_u32(this.regs[3]));
-    console.log("" +
+    this.log("" +
         "EFL=" + to_hex_u32(this.eflags) +
         " ESP=" + to_hex_u32(this.regs[4]) +
         " EBP=" + to_hex_u32(this.regs[5]) +
@@ -189,14 +193,14 @@ CPU_X86.prototype.dump = function () {
     var i, sa, na;
     var ta = [" ES", " CS", " SS", " DS", " FS", " GS", "LDT", " TR"];
     this.dump_short();
-    console.log("" +
+    this.log("" +
         "TSC=" + to_hex_u32(this.cycle_count) +
         " OP=" + to_hex_u8(this.cc_op) +
         " SRC=" + to_hex_u32(this.cc_src) +
         " DST=" + to_hex_u32(this.cc_dst) +
         " OP2=" + to_hex_u8(this.cc_op2) +
         " DST2=" + to_hex_u32(this.cc_dst2));
-    console.log("" +
+    this.log("" +
         "CPL=" + this.cpl +
         " CR0=" + to_hex_u32(this.cr0) +
         " CR2=" + to_hex_u32(this.cr2) +
@@ -211,7 +215,7 @@ CPU_X86.prototype.dump = function () {
         else sa = this.segs[i];
         na += ta[i] + "=" + to_hex_u16(sa.selector) + " " + to_hex_u32(sa.base) + " " + to_hex_u32(sa.limit) + " " + to_hex_u16((sa.flags >> 8) & 0xf0ff);
         if (i & 1) {
-            console.log(na);
+            this.log(na);
             na = "";
         } else {
             na += " ";
@@ -221,7 +225,7 @@ CPU_X86.prototype.dump = function () {
     na = "GDT=     " + to_hex_u32(sa.base) + " " + to_hex_u32(sa.limit) + "      ";
     sa = this.idt;
     na += "IDT=     " + to_hex_u32(sa.base) + " " + to_hex_u32(sa.limit);
-    console.log(na);
+    this.log(na);
 };
 CPU_X86.prototype.exec_internal = function (ua, va) {
     var this_, fa, regs;
@@ -3524,7 +3528,7 @@ CPU_X86.prototype.exec_internal = function (ua, va) {
             if (intno == 0x0e) {
                 na += " CR2=" + to_hex_u32(this_.cr2);
             }
-            console.log(na);
+            this.log(na);
             if (intno == 0x06) {
                 var na, i, n;
                 na = "Code:";
@@ -3535,7 +3539,7 @@ CPU_X86.prototype.exec_internal = function (ua, va) {
                     fa = (Nb + i) & -1;
                     na += " " + to_hex_u8(gb());
                 }
-                console.log(na);
+                this.log(na);
             }
         }
         if (this_.cr0 & (1 << 0)) {
@@ -8895,3 +8899,5 @@ CPU_X86.prototype.load_binary = function (url, address, callback) {
 CPU_X86.prototype.malloc = function (n) {
     return new Uint8Array(n);
 };
+
+self.CPU_X86 = CPU_X86;

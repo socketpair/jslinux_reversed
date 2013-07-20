@@ -8,14 +8,23 @@ function get_ticks() {
 }
 function PCEmulator(parameters) {
     var cpu, block_readers, hdd_names, i, p;
+    var me = this;
+    var logger = function () {
+        me.log.apply(me, arguments);
+    };
+
     cpu = new CPU_X86();
+    cpu.log = logger;
     this.cpu = cpu;
     cpu.phys_mem_resize(parameters.mem_size);
     this.init_ioports();
     this.register_ioport_write(0x80, 1, 1, this.ioport80_write);
     this.pic = new PIC(this, 0x20, 0xa0, cpu_set_irq.bind(cpu));
+    this.pic.log = logger;
     this.pit = new PIT(this, this.pic.set_irq.bind(this.pic, 0), get_ticks.bind(cpu));
+    this.pit.log = logger;
     this.cmos = new CMOS(this);
+    this.cmos.log = logger;
     /*
      * Most PC-compatible systems in the 1980s and 1990s had one or two ports, with communication interfaces defined like this:
      COM1: I/O port 0x3F8, IRQ 4
@@ -24,9 +33,12 @@ function PCEmulator(parameters) {
      COM4: I/O port 0x2E8, IRQ 3
      * */
     this.com1 = new SerialPort(this, 0x3f8, this.pic.set_irq.bind(this.pic, 4), parameters.emulname);
+    this.com1.log = logger;
     this.com2 = new SerialPort(this, 0x2f8, this.pic.set_irq.bind(this.pic, 3), parameters.emulname);
+    this.com2.log = logger;
 
     this.kbd = new Keyboard(this, this.reset.bind(this));
+    this.kbd.log = logger;
     this.reset_request = 0;
     hdd_names = ["hda", "hdb"];
     block_readers = [];
@@ -35,11 +47,14 @@ function PCEmulator(parameters) {
         block_readers[i] = null;
         if (p) {
             block_readers[i] = new BlockReader(p.url, p.block_size, p.nb_blocks, cpu.malloc);
+            block_readers[i].log = logger;
         }
     }
     this.ide0 = new IDE_device(this, 0x1f0, 0x3f6, this.pic.set_irq.bind(this.pic, 14), block_readers, cpu.malloc);
+    this.ide0.log = logger;
     if (parameters.clipboard_get && parameters.clipboard_set) {
         this.jsclipboard = new ClipboardDevice(this, 0x3c0, parameters.clipboard_get, parameters.clipboard_set, parameters.get_boot_time);
+        this.jsclipboard.log = logger;
     }
     cpu.ld8_port = this.ld8_port.bind(this);
     cpu.ld16_port = this.ld16_port.bind(this);
@@ -49,6 +64,10 @@ function PCEmulator(parameters) {
     cpu.st32_port = this.st32_port.bind(this);
     cpu.get_hard_intno = this.pic.get_hard_intno.bind(this.pic);
 }
+
+PCEmulator.prototype.log = function () {
+};
+
 PCEmulator.prototype.load_binary = function (url, address, callback) {
     return this.cpu.load_binary(url, address, callback);
 };
@@ -204,3 +223,5 @@ PCEmulator.prototype.ioport80_write = function (io_port, byte_value) {
 PCEmulator.prototype.reset = function () {
     this.reset_request = 1;
 };
+
+self.PCEmulator = PCEmulator;

@@ -11,6 +11,10 @@ function ClipboardDevice(pc_emulator, io_port, read_func, write_func, get_boot_t
     this.write_func = write_func;
     this.get_boot_time = get_boot_time;
 }
+
+ClipboardDevice.prototype.log = function () {
+};
+
 ClipboardDevice.prototype.ioport_writeb = function (io_port, byte_value) {
     this.doc_str += String.fromCharCode(byte_value);
 };
@@ -71,3 +75,5 @@ ClipboardDevice.prototype.ioport_readl = function (io_port) {
             }
     }
 };
+
+self.ClipboardDevice = ClipboardDevice;

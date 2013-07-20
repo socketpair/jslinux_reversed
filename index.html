@@ -3,82 +3,25 @@
 <head>
     <title>Javascript PC Emulator</title>
     <link rel="stylesheet" href="jslinux.css">
-
     <script type="text/javascript" src="utils.js"></script>
     <script type="text/javascript" src="term.js"></script>
-    <script type="text/javascript" src="cpux86-ta.js"></script>
-    <script type="text/javascript" src="clipboard.js"></script>
-    <script type="text/javascript" src="cmos.js"></script>
-    <script type="text/javascript" src="ide.js"></script>
-    <script type="text/javascript" src="keyboard.js"></script>
-    <script type="text/javascript" src="pic.js"></script>
-    <script type="text/javascript" src="pit.js"></script>
-    <script type="text/javascript" src="serial.js"></script>
-    <script type="text/javascript" src="block_reader.js"></script>
-    <script type="text/javascript" src="pcemulator.js"></script>
-    <script type="text/javascript" src="jslinux.js"></script>
+    <script type="text/javascript" src="jslinuxwithgui.js"></script>
+    <script type="text/javascript" src="pseudoworker.js"></script>
     <script type="text/javascript">
         function megastart() {
-            var clipboard_element;
-
-            if (!window.Uint8Array || !window.Uint16Array || !window.Int32Array || !window.ArrayBuffer) {
-                alert("Typed array are not supported. Please use modern browser");
-                return;
-            }
-
-            clipboard_element = document.getElementById("text_clipboard");
-
-            function clipboard_set(val) {
-                clipboard_element.value = val;
-            }
-
-            function clipboard_get() {
-                return clipboard_element.value;
-            }
-
-
-            function run_linux(name, ident) {
-
-                var keyboard2guest;
-                var pc, term, com1;
-
-
-                pc = jslinux(clipboard_get, clipboard_set, name);
-                com1 = pc.com1;
-                keyboard2guest = function (str) {
-                    // keyboard -> guest
-                    com1.send_chars(str);
-                };
-
-                term = new Term(80, 30, keyboard2guest);
-                term.open(ident);
-                com1.write_func = term.write.bind(term); // guest -> terminal
-                return pc;
-            }
-
-
-            var linux1 = run_linux('linux1', document.getElementById('terminal1'));
-            var linux2 = run_linux('linux2', document.getElementById('terminal2'));
-
-            var linux1_serial = linux1.com2;
-            var linux2_serial = linux2.com2;
-
-            linux1_serial.write_func = linux2_serial.send_chars.bind(linux2_serial);
-            linux2_serial.write_func = linux1_serial.send_chars.bind(linux1_serial);
-
-        }
+            var prefix = '/jslinux';
+            var j1 = new JSLinuxWithGUI(
+                    document.getElementById('terminal1'),
+                    'linux1',
+                    prefix,
+                    "console=ttyS0 root=/dev/hda ro init=/sbin/init notsc=1 hdb=none"
+            );
+            j1.start();
         }
     </script>
 </head>
 
 <body onload="megastart()">
-<table>
-    <tr>
-        <td id="terminal1"></td>
-        <td id="terminal2"></td>
-    </tr>
-</table>
-<br>
-<textarea rows="4" cols="16" id="text_clipboard"></textarea>
+<div id="terminal1"></div>
 </body>
 </html>

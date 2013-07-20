@@ -45,8 +45,9 @@ function SerialPort(pc_emulator, address, set_irq_func, emulname) {
     this.scr = 0;
     this.fcr = 0;
     this.set_irq_func = set_irq_func;
+    var me = this;
     this.write_func = function (data) {
-        console.log(emulname + 'writes to unbound COM port: ' + data);
+        me.log(emulname + 'writes to unbound COM port: ' + data);
     };
     this.tx_fifo = ""; // guest -> wire
     this.rx_fifo = ""; // wire -> guest
@@ -55,10 +56,7 @@ function SerialPort(pc_emulator, address, set_irq_func, emulname) {
     pc_emulator.register_ioport_read(address, 8, 1, this.ioport_read.bind(this));
 }
 
-SerialPort.prototype.debug = function () {
-    if (this.baseaddr != 0x2f8)
-        return;
-    console.log(this.name, arguments);
+SerialPort.prototype.log = function () {
 };
 
 SerialPort.prototype.update_irq = function () {
@@ -151,10 +149,10 @@ SerialPort.prototype.ioport_write = function (address, byte_value) {
             this.mcr = byte_value;
             break;
         case 5:
-            this.debug('Factory UART test is not implemented');
+            this.log('Factory UART test is not implemented');
             break;
         case 6:
-            this.debug('Unknown UART write operation BASE+6');
+            this.log('Unknown UART write operation BASE+6');
             break;
         case 7:
             // SCR scratch
@@ -234,3 +232,5 @@ SerialPort.prototype.send_chars = function (str) {
     this.rx_fifo += str;
     this.send_char_from_fifo();
 };
+
+self.SerialPort = SerialPort;

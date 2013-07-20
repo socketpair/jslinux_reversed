@@ -71,7 +71,7 @@ function load_binary(url, callback) {
 
     is_ie = (typeof ActiveXObject == "function");
     if (!is_ie) {
-        typed_array = ('ArrayBuffer' in window && 'Uint8Array' in window);
+        typed_array = ((typeof ArrayBuffer != 'undefined') && (typeof Uint8Array != 'undefined'));
         if (typed_array && 'mozResponseType' in req) {
             /* firefox 6 beta */
             req.mozResponseType = 'arraybuffer';
@@ -85,4 +85,83 @@ function load_binary(url, callback) {
     }
     req.send(null);
 }
+/*
+ jQuery.ajax({
+ //context: me,
+ dataType: "script",
+ cache: true,
+ url: url,
+ async: false
+ });
+ */
 
+function loadScript(url, success_callback, error_callback) {
+    var script = document.createElement('script');
+    /*
+     var isLoaded = false;
+     script.onreadystatechange = function () {
+     if ((script.readyState == 'complete' || script.readyState == 'loaded') && !isLoaded) {
+     if (callback)
+     callback();
+     }
+     };
+     */
+    // TODO: make this cross-browser
+    if (success_callback) {
+        script.onload = function () {
+            success_callback();
+        };
+    }
+
+    if (error_callback) {
+        script.onerror = function () {
+            error_callback();
+        };
+    }
+
+    script.setAttribute('type', 'text/javascript');
+    script.setAttribute('src', url);
+    var parent = document.body; //document.getElementsByTagName('head').item(0) || document.documentElement;
+    parent.appendChild(script);
+}
+
+function loadScripts(scripts, success_callback, error_callback) {
+    var counter = scripts.length;
+    var i;
+    var was_error = false;
+
+    if (counter == 0) {
+        success_callback();
+        return;
+    }
+
+    var operation_complete = function () {
+        if (was_error)
+            error_callback();
+        else
+            success_callback();
+    };
+
+    var success = function () {
+        if (--counter <= 0) {
+            operation_complete();
+        }
+    };
+
+    var error = function () {
+        was_error = true;
+        if (--counter <= 0) {
+            operation_complete();
+        }
+    };
+
+    for (i = counter - 1; i >= 0; i--) {
+        // load all scripts asynchronously
+        loadScript(scripts[i], success, error);
+    }
+}
+
+
+self.load_binary = load_binary;
+self.loadScript = loadScript;
+self.loadScripts = loadScripts;

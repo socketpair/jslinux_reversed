@@ -5,6 +5,10 @@ function PIC_sub(pc_emulator, io_port) {
     pc_emulator.register_ioport_read(io_port, 2, 1, this.ioport_read.bind(this));
     this.reset();
 }
+
+PIC_sub.prototype.log = function () {
+};
+
 PIC_sub.prototype.reset = function () {
     this.last_irr = 0;
     this.irr = 0;
@@ -21,6 +25,10 @@ PIC_sub.prototype.reset = function () {
     this.elcr = 0;
     this.elcr_mask = 0;
 };
+
+PIC_sub.prototype.log = function () {
+};
+
 PIC_sub.prototype.set_irq1 = function (Tg, Rf) {
     var xc;
     xc = 1 << Tg;
@@ -181,9 +189,15 @@ PIC_sub.prototype.ioport_read = function (io_port) {
     return retval;
 };
 function PIC(pc_emulator, pic1_port, pic2_port, cpu_set_irq) {
+    var me = this;
+    var logger = function () {
+        me.log.apply(me, arguments);
+    };
     this.pics = [];
     this.pics[0] = new PIC_sub(pc_emulator, pic1_port);
+    this.pics[0].log = logger;
     this.pics[1] = new PIC_sub(pc_emulator, pic2_port);
+    this.pics[1].log = logger;
     this.pics[0].elcr_mask = 0xf8;
     this.pics[1].elcr_mask = 0xde;
     this.irq_requested = 0;
@@ -191,6 +205,10 @@ function PIC(pc_emulator, pic1_port, pic2_port, cpu_set_irq) {
     this.pics[0].update_irq = this.update_irq.bind(this);
     this.pics[1].update_irq = this.update_irq.bind(this);
 }
+
+PIC.prototype.log = function () {
+};
+
 PIC.prototype.update_irq = function () {
     var priority1, priority2;
 
@@ -235,3 +253,5 @@ PIC.prototype.get_hard_intno = function () {
     this.update_irq();
     return intno;
 };
+
+self.PIC = PIC;
