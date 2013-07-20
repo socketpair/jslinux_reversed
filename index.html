@@ -19,29 +19,54 @@
     <script type="text/javascript" src="jslinux.js"></script>
     <script type="text/javascript">
         function megastart() {
-            var clipboard;
+            var clipboard_element;
 
             if (!window.Uint8Array || !window.Uint16Array || !window.Int32Array || !window.ArrayBuffer) {
                 alert("Typed array are not supported. Please use modern browser");
                 return;
             }
 
-            clipboard = document.getElementById("text_clipboard");
+            clipboard_element = document.getElementById("text_clipboard");
 
             function clipboard_set(val) {
-                clipboard.value = val;
+                clipboard_element.value = val;
             }
 
             function clipboard_get() {
-                return clipboard.value;
+                return clipboard_element.value;
             }
 
-            var linux1 = jslinux(clipboard_get, clipboard_set, document.getElementById("terminal1"), 'linux1');
-            var linux2 = jslinux(clipboard_get, clipboard_set, document.getElementById("terminal2"), 'linux2');
 
-            linux1.com2.write_func = linux2.com2.send_chars.bind(linux2.com2);
-            linux2.com2.write_func = linux1.com2.send_chars.bind(linux1.com2);
+            function run_linux(name, ident) {
 
+                var keyboard2guest;
+                var pc, term, com1;
+
+
+                pc = jslinux(clipboard_get, clipboard_set, name);
+                com1 = pc.com1;
+                keyboard2guest = function (str) {
+                    // keyboard -> guest
+                    com1.send_chars(str);
+                };
+
+                term = new Term(80, 30, keyboard2guest);
+                term.open(ident);
+                com1.write_func = term.write.bind(term); // guest -> terminal
+                return pc;
+            }
+
+
+            var linux1 = run_linux('linux1', document.getElementById('terminal1'));
+            var linux2 = run_linux('linux2', document.getElementById('terminal2'));
+
+            var linux1_serial = linux1.com2;
+            var linux2_serial = linux2.com2;
+
+            linux1_serial.write_func = linux2_serial.send_chars.bind(linux2_serial);
+            linux2_serial.write_func = linux1_serial.send_chars.bind(linux1_serial);
+
+        }
         }
     </script>
 </head>

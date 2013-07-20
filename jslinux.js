@@ -8,7 +8,7 @@
  */
 "use strict";
 
-function jslinux(clipboard_get, clipboard_set, terminal_container, emulname) {
+function jslinux(clipboard_get, clipboard_set, emulname) {
     var pc, boot_start_time, start_addr = 0x10000, mem_size = 16 * 1024 * 1024;
 
     function start2(ret) {
@@ -58,7 +58,7 @@ function jslinux(clipboard_get, clipboard_set, terminal_container, emulname) {
 
 
 
-    var term, params = {};
+    var params = {};
 
     params.mem_size = mem_size;
     params.clipboard_get = clipboard_get;
@@ -67,13 +67,6 @@ function jslinux(clipboard_get, clipboard_set, terminal_container, emulname) {
     params.hda = {  "url": "bin/hda%d", "nb_blocks": 912, "block_size": 64};
     params.emulname = emulname;
     pc = new PCEmulator(params);
-    term = new Term(80, 30, function (str) {
-        // keyboard -> guest
-        pc.com1.send_chars(str);
-    });
-    term.open(terminal_container);
-    // guest -> terminal
-    pc.com1.write_func = term.write.bind(term);
 
     pc.load_binary("bin/vmlinux26.bin", 0x00100000, start2);
 
