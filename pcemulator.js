@@ -202,5 +202,5 @@ PCEmulator.prototype.ioport80_write = function (io_port, byte_value) {
 };
 
 PCEmulator.prototype.reset = function () {
-    this.request_request = 1;
+    this.reset_request = 1;
 };
