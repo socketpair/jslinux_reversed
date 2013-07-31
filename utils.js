@@ -53,6 +53,12 @@ function load_binary(url, callback) {
             typed_array = false;
         }
 
+        if (data === null || data === undefined) {
+            //TODO: report error to GUI (!)
+            callback(null, -1);
+            return;
+        }
+
         if (typed_array) {
             len = data.byteLength;
             buf = new Uint8Array(data, 0, len);
