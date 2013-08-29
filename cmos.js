@@ -24,6 +24,10 @@ function CMOS(pc_emulator) {
     pc_emulator.register_ioport_write(0x70, 2, 1, this.ioport_write.bind(this));
     pc_emulator.register_ioport_read(0x70, 2, 1, this.ioport_read.bind(this));
 }
+
+CMOS.prototype.log = function () {
+};
+
 CMOS.prototype.ioport_write = function (io_port, byte_value) {
     if (io_port == 0x70) {
         this.cmos_index = byte_value & 0x7f;

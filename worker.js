@@ -1,15 +1,15 @@
 "use strict";
 
 (function () {
-    var asdasd;
+    var worker_instance;
 
     var is_pseudo;
 
     if (self.DIRTY_PASS) {
-        asdasd = self.DIRTY_PASS; // for pseudo-worker
+        worker_instance = self.DIRTY_PASS; // for pseudo-worker
         is_pseudo = true;
     } else {
-        asdasd = self; // for real worker
+        worker_instance = self; // for real worker
         is_pseudo = false;
     }
 
@@ -20,7 +20,7 @@
     };
 
     var clibboard_set = function (data) {
-        asdasd.postMessage({
+        worker_instance.postMessage({
             what: 'clipboard_output',
             str: data
         });
@@ -29,7 +29,7 @@
     };
 
     var pc;
-    asdasd.onmessage = function (evt) {
+    worker_instance.onmessage = function (evt) {
         var data = evt.data;
 
         switch (data.what) {
@@ -42,14 +42,21 @@
                     self.importScripts.apply(self, data.scripts);
                 }
                 pc = self.jslinux(clipboard_get, clibboard_set, data.name, data.prefix + '/bin');
+                pc.log = function () {
+                    worker_instance.postMessage({
+                        what: 'log',
+                        // convert arguments to generic array, to pass over postMessage in worker...
+                        args: Array.prototype.slice.call(arguments[0], 0)
+                    });
+                };
                 pc.com1.write_func = function (blob) {
-                    asdasd.postMessage({
+                    worker_instance.postMessage({
                         what: 'com1_output',
                         str: blob
                     });
                 };
                 pc.com2.write_func = function (blob) {
-                    asdasd.postMessage({
+                    worker_instance.postMessage({
                         what: 'com2_output',
                         str: blob
                     });

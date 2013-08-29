@@ -1,10 +1,10 @@
 "use strict";
 
-function IDE_drive(Gh, Hh, malloc_fun) {
+function IDE_drive(ide_interface, block_reader, malloc_fun) {
     var cylinders, sectors;
-    this.ide_if = Gh;
-    this.bs = Hh;
-    sectors = Hh.get_sector_count();
+    this.ide_if = ide_interface;
+    this.bs = block_reader;
+    sectors = block_reader.get_sector_count();
     cylinders = sectors / (16 * 63);
     if (cylinders > 16383) {
         cylinders = 16383;
@@ -34,6 +34,10 @@ function IDE_drive(Gh, Hh, malloc_fun) {
     this.req_nb_sectors = 0;
     this.io_nb_sectors = 0;
 }
+
+IDE_drive.prototype.log = function () {
+};
+
 IDE_drive.prototype.identify = function () {
     function store_word(word_index, word_value) {
         io_buffer[word_index * 2] = word_value & 0xff;
@@ -293,13 +297,20 @@ IDE_drive.prototype.exec_cmd = function (byte_command) {
             break;
     }
 };
+
 function IDE_device(pc_emulator, io_port1, io_port2, set_irq_func, block_readers, malloc_fun) {
-    var i, drive;
+    var i, drive, me;
     this.set_irq_func = set_irq_func;
     this.drives = [];
+    me = this;
+    var logger = function () {
+        me.log(arguments);
+    };
+
     for (i = 0; i < 2; i++) {
         if (block_readers[i]) {
             drive = new IDE_drive(this, block_readers[i], malloc_fun);
+            drive.log = logger;
         } else {
             drive = null;
         }
@@ -317,6 +328,10 @@ function IDE_device(pc_emulator, io_port1, io_port2, set_irq_func, block_readers
     pc_emulator.register_ioport_write(io_port1, 4, 4, this.data_writel.bind(this));
     pc_emulator.register_ioport_read(io_port1, 4, 4, this.data_readl.bind(this));
 }
+
+IDE_device.prototype.log = function () {
+};
+
 IDE_device.prototype.ioport_write = function (io_port, byte_value) {
     var current_drive = this.cur_drive;
 

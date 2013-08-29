@@ -11,6 +11,10 @@ function PIT_channel(get_ticks) {
     this.get_ticks = get_ticks;
     this.pit_time_unit = 1193182 / 2000000;
 }
+
+PIT_channel.prototype.log = function () {
+};
+
 PIT_channel.prototype.get_time = function () {
     return Math.floor(this.get_ticks() * this.pit_time_unit);
 };
@@ -117,9 +121,16 @@ PIT_channel.prototype.pit_load_count = function (ja) {
 
 function PIT(pc_emulator, set_irq_func, get_ticks) {
     var channel, i;
+    var me = this;
     this.pit_channels = [];
+
+    var logger = function () {
+        me.log(arguments);
+    };
+
     for (i = 0; i < 3; i++) {
         channel = new PIT_channel(get_ticks);
+        channel.log = logger;
         this.pit_channels[i] = channel;
         channel.mode = 3;
         channel.gate = (i != 2) >> 0;
@@ -132,6 +143,10 @@ function PIT(pc_emulator, set_irq_func, get_ticks) {
     pc_emulator.register_ioport_read(0x61, 1, 1, this.speaker_ioport_read.bind(this));
     pc_emulator.register_ioport_write(0x61, 1, 1, this.speaker_ioport_write.bind(this));
 }
+
+PIT.prototype.log = function () {
+};
+
 PIT.prototype.ioport_write = function (io_port, byte_value) {
     var channel_index, kh, channel;
     io_port &= 3;

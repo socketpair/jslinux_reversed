@@ -106,6 +106,12 @@ function JSLinuxWithGUI(term_container, linuxname, prefix) {
                 //todo: generate event
                 //http://stackoverflow.com/questions/2490825/how-to-trigger-event-in-javascript
                 me.onclipboardoutput({data: evt.data.str});
+                break;
+            case 'log':
+                console.log.apply(console, evt.data.args);
+                break;
+            default:
+                console.log('bugg', evt);
         }
     };
     //predefined function
