@@ -101,7 +101,8 @@ SerialPort.prototype.ioport_write = function (address, byte_value) {
                 this.tx_fifo += String.fromCharCode(byte_value);
                 this.lsr &= ~0x20;
                 this.update_irq();
-                if (this.tx_fifo.length >= 16) {
+                // real buffering affect visual sppeed. just tun it off via HACK :)
+                if (true || this.tx_fifo.length >= 16) {
                     this.write_tx_fifo();
                 }
             } else {
