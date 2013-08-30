@@ -40,16 +40,24 @@ function PCEmulator(parameters) {
     this.kbd = new Keyboard(this, this.reset.bind(this));
     this.kbd.log = logger;
     this.reset_request = 0;
-    hdd_names = ["hda", "hdb"];
+
+
     block_readers = [];
-    for (i = 0; i < hdd_names.length; i++) {
-        p = parameters[hdd_names[i]];
-        block_readers[i] = null;
-        if (p) {
-            block_readers[i] = new BlockReader(p.url, p.block_size, p.nb_blocks, cpu.malloc);
-            block_readers[i].log = logger;
-        }
+
+    block_readers[0] = null;
+    p = parameters.hda;
+    if (p) {
+        block_readers[0] = new BlockReader(p.url, p.block_size, p.nb_blocks, cpu.malloc);
+        block_readers[0].log = logger;
     }
+
+    block_readers[1] = null;
+    p = parameters.hdb;
+    if (p) {
+        block_readers[1] = new BlockReaderWriter(p.sectors, cpu.malloc, 'hdb.img');
+        block_readers[1].log = logger;
+    }
+
     this.ide0 = new IDE_device(this, 0x1f0, 0x3f6, this.pic.set_irq.bind(this.pic, 14), block_readers, cpu.malloc);
     this.ide0.log = logger;
     if (parameters.clipboard_get && parameters.clipboard_set) {

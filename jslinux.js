@@ -37,7 +37,7 @@ function jslinux(clipboard_get, clipboard_set, emulname, bin_prefix) {
         }
         /* set the Linux kernel command line */
         cmdline_addr = 0xf800;
-        pc.cpu.write_string(cmdline_addr, "console=ttyS0 root=/dev/hda ro init=/sbin/init notsc=1 hdb=none");
+        pc.cpu.write_string(cmdline_addr, "console=ttyS0 root=/dev/hda ro resume=/dev/hdb notsc=1 init=/sbin/init");
 
         pc.cpu.eip = start_addr;
         pc.cpu.regs[0] = mem_size;
@@ -65,6 +65,7 @@ function jslinux(clipboard_get, clipboard_set, emulname, bin_prefix) {
     params.clipboard_set = clipboard_set;
     params.get_boot_time = get_boot_time;
     params.hda = {  "url": bin_prefix + "/hda%d", "nb_blocks": 120 * 1024 / 64, "block_size": 64};
+    params.hdb = { "sectors": 16 * 1024 * 1024 / 512 };
     params.emulname = emulname;
     pc = new PCEmulator(params);
 

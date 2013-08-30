@@ -18,6 +18,7 @@ function BlockReader(url, block_size_kb, block_count, malloc_fun) {
     this.sector_buf = null;
     this.sector_cb = null;
     this.malloc_fun = malloc_fun;
+    this.filewriter = undefined;
 }
 
 BlockReader.prototype.log = function () {
@@ -167,8 +168,9 @@ BlockReader.prototype.preload_cb = function (block_number, data, data_len) {
         this.preload_cb2(0);
     }
 };
+
 BlockReader.prototype.write_async = function (sector_num, buf, sector_count, callback) {
-    this.log('write_async called');
+    me.log('Attempting to write to readonly device');
     return -1;
 };
 

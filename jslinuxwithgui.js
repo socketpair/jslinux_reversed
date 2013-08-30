@@ -45,6 +45,7 @@ var jslinux_scripts = [
     "/pit.js",
     "/serial.js",
     "/block_reader.js",
+    "/block_reader_writer.js",
     "/pcemulator.js",
     "/jslinux.js"
 ];
@@ -134,9 +135,14 @@ function JSLinuxWithGUI(term_container, linuxname, prefix) {
 JSLinuxWithGUI.prototype.onterminaloutput = function (evt) {
 };
 
-JSLinuxWithGUI.prototype.start = function() {
-    this.worker.postMessage(this.startparams);
-}
+JSLinuxWithGUI.prototype.start = function () {
+    var me = this;
+    //TODO: webkit only (!)
+    // TODO: window.webkitStorageInfo' is deprecated. Please use 'navigator.webkitTemporaryStorage' or 'navigator.webkitPersistentStorage' instead.
+    webkitStorageInfo.requestQuota(PERSISTENT, 20 * 1024 * 1024, function (grantedbytes) {
+        me.worker.postMessage(me.startparams);
+    });
+};
 
 JSLinuxWithGUI.prototype.push_to_com2 = function (text) {
     this.worker.postMessage({
