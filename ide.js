@@ -236,20 +236,20 @@ IDE_drive.prototype.identify_cb = function () {
 
 IDE_drive.prototype.exec_cmd = function (byte_command) {
     switch (byte_command) {
-        case 0xA1: // ATA_CMD_IDENTIFY_PACKET
-        case 0xEC: // ATA_CMD_IDENTIFY
+        case 0xA1: // ATA_CMD_ID_ATAPI
+        case 0xEC: // ATA_CMD_ID_ATA
             this.identify();
             this.status = 0x40 | 0x10 | 0x08;
             this.transfer_start(512, this.identify_cb.bind(this));
             this.set_irq();
             break;
-        case 0x91:
-        case 0x10:
+        case 0x91: // ATA_CMD_INIT_DEV_PARAMS
+        case 0x10: // ???? RECAL (see qemu sources)
             this.error = 0;
             this.status = 0x40 | 0x10;
             this.set_irq();
             break;
-        case 0xC6:
+        case 0xC6: // ???? SET_MULTI (see qemu)
             if (this.nsector > 128 || (this.nsector & (this.nsector - 1)) != 0) {
                 this.abort_command();
             } else {
@@ -258,17 +258,17 @@ IDE_drive.prototype.exec_cmd = function (byte_command) {
             }
             this.set_irq();
             break;
-        case 0x20: // ATA_CMD_READ_PIO
+        case 0x20: // ATA_CMD_PIO_READ
         case 0x21:
             this.req_nb_sectors = 1;
             this.sector_read();
             break;
-        case 0x30: //ATA_CMD_WRITE_PIO
+        case 0x30: //ATA_CMD_PIO_WRITE
         case 0x31:
             this.req_nb_sectors = 1;
             this.sector_write();
             break;
-        case 0xC4:
+        case 0xC4: // ATA_CMD_READ_MULTI
             if (!this.mult_sectors) {
                 this.abort_command();
                 this.set_irq();
@@ -277,7 +277,7 @@ IDE_drive.prototype.exec_cmd = function (byte_command) {
                 this.sector_read();
             }
             break;
-        case 0xC5:
+        case 0xC5: // ATA_CMD_WRITE_MULTI
             if (!this.mult_sectors) {
                 this.abort_command();
                 this.set_irq();
@@ -286,12 +286,19 @@ IDE_drive.prototype.exec_cmd = function (byte_command) {
                 this.sector_write();
             }
             break;
-        case 0xF8:
+        case 0xE0: // ATA_CMD_STANDBYNOW1
+        case 0xE1: // ATA_CMD_IDLEIMMEDIATE
+        case 0xE7: // ATA_CMD_FLUSH
+            this.status = 0x40;
+            this.set_irq();
+            break;
+        case 0xF8: // ATA_CMD_READ_NATIVE_MAX
             this.set_sector(this.nb_sectors - 1);
             this.status = 0x40;
             this.set_irq();
             break;
         default:
+            this.log('unknown IDE command', byte_command);
             this.abort_command();
             this.set_irq();
             break;
