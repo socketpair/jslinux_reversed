@@ -31,6 +31,7 @@ function JslinuxWorker(worker_child, is_pseudo) {
             prefix + "/pit.js",
             prefix + "/serial.js",
             prefix + "/block_reader.js",
+            prefix + "/block_reader_writer.js",
             prefix + "/pcemulator.js",
             prefix + "/jslinux.js"
         ];

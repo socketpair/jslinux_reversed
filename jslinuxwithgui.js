@@ -74,9 +74,9 @@ JSLinuxWithGUI.prototype.report_no_support = function (term_container) {
 JSLinuxWithGUI.prototype.onterminaloutput = function (evt) {
 };
 
-JSLinuxWithGUI.prototype.start = function() {
+JSLinuxWithGUI.prototype.start = function () {
     this.worker.postMessage(this.startparams);
-}
+};
 
 JSLinuxWithGUI.prototype.push_to_com2 = function (text) {
     this.worker.postMessage({

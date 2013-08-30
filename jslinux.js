@@ -62,6 +62,7 @@ function jslinux(clipboard_get, clipboard_set, emulname, bin_prefix, cmdline) {
     params.clipboard_set = clipboard_set;
     params.get_boot_time = get_boot_time;
     params.hda = {  "url": bin_prefix + "/hda%d", "nb_blocks": 120 * 1024 / 64, "block_size": 64};
+    params.hdb = { "sectors": 16 * 1024 * 1024 / 512, "filename":emulname+'_hdb.img' };
     params.emulname = emulname;
     pc = new PCEmulator(params);
 
