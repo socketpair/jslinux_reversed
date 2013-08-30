@@ -7181,6 +7181,25 @@ CPU_X86.prototype.exec_internal = function (ua, va) {
                             mem8 = phys_mem8[physmem8_ptr++];
                             conditional_var = (mem8 >> 3) & 7;
                             switch (conditional_var) {
+                                case 0: /* sgdt */
+                                case 1: /* sidt */
+                                    if ((mem8 >> 6) == 3)
+                                        abort(6);
+                                    if (this.cpl != 0)
+                                        abort(13);
+                                    mem8_loc = segment_translation(mem8);
+
+                                    if (conditional_var == 0) {
+                                        var_x = this.gdt.limit;
+                                        var_y = this.gdt.base;
+                                    } else {
+                                        var_x = this.idt.limit;
+                                        var_y = this.idt.base;
+                                    }
+                                    st16_mem8_write(var_x);
+                                    mem8_loc += 2;
+                                    st32_mem8_write(var_y);
+                                    break;
                                 case 2: // lgdt
                                 case 3: // lidt
                                     if ((mem8 >> 6) == 3)
