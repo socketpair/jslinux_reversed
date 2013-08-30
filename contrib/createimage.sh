@@ -49,7 +49,7 @@ ln -s /tmp     $ddd/var/run
 rm -f $ddd/etc/mtab
 ln -s /proc/mounts $ddd/etc/mtab
 mknod $ddd/dev/ppp c 108 0
-mknod $ddd/dev/clipboard c 10 231
+mknod $ddd/dev/clipboard c 10 250
 mknod $ddd/dev/ttyS0 c 4 64
 mknod $ddd/dev/ttyS1 c 4 65
 mknod $ddd/dev/ttyS2 c 4 66
