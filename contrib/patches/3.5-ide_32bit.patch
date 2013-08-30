@@ -1,0 +1,12 @@
+diff --git a/drivers/ide/ide-generic.c b/drivers/ide/ide-generic.c
+index 54d7c46..2d7dac1 100644
+--- a/drivers/ide/ide-generic.c
++++ b/drivers/ide/ide-generic.c
+@@ -28,7 +28,7 @@ module_param(probe_mask, int, 0);
+ MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
+ 
+ static const struct ide_port_info ide_generic_port_info = {
+-       .host_flags             = IDE_HFLAG_NO_DMA,
++       .host_flags             = IDE_HFLAG_NO_DMA | IDE_HFLAG_IO_32BIT,
+        .chipset                = ide_generic,
+ };
