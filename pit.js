@@ -12,7 +12,7 @@ function PIT_channel(get_ticks) {
     this.pit_time_unit = 1193182 / 2000000;
 }
 PIT_channel.prototype.get_time = function () {
-    return Math.floor(this.get_ticks() * this.pit_time_unit);
+    return (this.get_ticks() * this.pit_time_unit)|0;
 };
 PIT_channel.prototype.pit_get_count = function () {
     var d, fh;

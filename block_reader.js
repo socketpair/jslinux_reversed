@@ -67,7 +67,7 @@ BlockReader.prototype.read_async_cb = function (Vh) {
     var block_number, l, we, cache_block, i, Wh, sector_buf, Yh, cache_buf;
     var ai, Ig;
     while (this.sector_index < this.sector_count) {
-        block_number = Math.floor(this.sector_num / this.block_sectors);
+        block_number = (this.sector_num / this.block_sectors)|0;
         cache_block = this.get_cached_block(block_number);
         if (cache_block) {
             we = this.sector_num - block_number * this.block_sectors;
@@ -115,7 +115,7 @@ BlockReader.prototype.read_async_cb2 = function (data, data_len) {
         return;
     }
 
-    block_number = Math.floor(this.sector_num / this.block_sectors);
+    block_number = (this.sector_num / this.block_sectors)|0;
     this.add_block(block_number, data, data_len);
     this.read_async_cb(false);
 
