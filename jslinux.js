@@ -13,8 +13,7 @@ function jslinux(clipboard_get, clipboard_set, emulname) {
 
     function start2(ret) {
         if (ret < 0) {
-            alert("kernel loading failed");
-            return;
+            throw "kernel loading failed";
         }
         pc.load_binary("bin/linuxstart.bin", start_addr, start3);
     }
@@ -22,8 +21,9 @@ function jslinux(clipboard_get, clipboard_set, emulname) {
     // TODO: automate calculation of preload list...
     function start3(ret) {
         var block_list;
-        if (ret < 0)
-            return;
+        if (ret < 0) {
+            throw "preload binaries failed";
+        }
         block_list = [ 0, 7, 3, 643, 720, 256, 336, 644, 781, 387, 464, 475, 131, 589, 468, 472, 474, 776, 777, 778, 779, 465, 466, 473, 467, 469, 470, 512, 592, 471, 691, 697, 708, 792, 775, 769 ];
         pc.ide0.drives[0].bs.preload(block_list, start4);
     }
@@ -32,8 +32,7 @@ function jslinux(clipboard_get, clipboard_set, emulname) {
         var cmdline_addr;
 
         if (ret < 0) {
-            alert("Linux starter load failed");
-            return;
+            throw "Linux starter load failed";
         }
         /* set the Linux kernel command line */
         cmdline_addr = 0xf800;
@@ -55,8 +54,6 @@ function jslinux(clipboard_get, clipboard_set, emulname) {
     function get_boot_time() {
         return (+new Date()) - boot_start_time;
     }
-
-
 
     var params = {};
 
