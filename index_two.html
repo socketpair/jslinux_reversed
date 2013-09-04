@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Javascript PC Emulator</title>
+    <link rel="stylesheet" href="jslinux.css">
+
+    <!-- TODO: this lsit is copied in worker.js -->
+    <script type="text/javascript" src="utils.js"></script>
+    <script type="text/javascript" src="term.js"></script>
+    <script type="text/javascript" src="jslinuxwithgui.js"></script>
+    <script type="text/javascript">
+        function megastart() {
+            var realstart=function() {
+                var prefix='/jslinux';
+                var j1 = new JSLinuxWithGUI(document.getElementById('terminal1'), 'linux1', prefix, "console=ttyS0 root=/dev/hda ro notsc=1 init=/sbin/init");
+                var j2 = new JSLinuxWithGUI(document.getElementById('terminal2'), 'linux2', prefix, "console=ttyS0 root=/dev/hda ro notsc=1 init=/sbin/init");
+                j1.push_to_clipboard([
+                    'hostname cf-server',
+                    'slattach /dev/ttyS1 &',
+                    'while ! ip link set up dev sl0; do sleep 0.1; done 2>/dev/null',
+                    'ip addr add 5.6.7.8 peer 1.2.3.4 dev sl0',
+                    'ip link set mtu 1500 dev sl0',
+                    ''
+                ].join('\n'));
+                j2.push_to_clipboard([
+                    'hostname cf-client',
+                    'slattach /dev/ttyS1 &',
+                    'while ! ip link set up dev sl0; do sleep 0.1; done 2>/dev/null',
+                    'ip addr add 1.2.3.4 peer 5.6.7.8 dev sl0',
+                    'ip link set mtu 1500 dev sl0',
+                    ''
+                ].join('\n'));
+
+                j1.oncom2data = function (evt) { j2.push_to_com2(evt.data); };
+                j2.oncom2data = function (evt) { j1.push_to_com2(evt.data); };
+
+                j1.start();
+                j2.start();
+            };
+
+            // TODO: webkit only (!)
+            // TODO: window.webkitStorageInfo' is deprecated. Please use 'navigator.webkitTemporaryStorage' or 'navigator.webkitPersistentStorage' instead.
+            // TODO: get real size
+            var size = (16+16) * 1024 * 1024;
+            webkitStorageInfo.requestQuota(PERSISTENT, size, function (grantedbytes) {
+                if (grantedbytes < size) {
+                        throw "size not granted";
+                }
+                realstart();
+            });
+
+
+        }
+    </script>
+</head>
+
+<body onload="megastart()">
+<table>
+    <tr>
+        <td id="terminal1"></td>
+        <td id="terminal2"></td>
+    </tr>
+</table>
+</body>
+</html>
