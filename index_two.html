@@ -39,16 +39,13 @@
             };
 
             // TODO: webkit only (!)
-            // TODO: window.webkitStorageInfo' is deprecated. Please use 'navigator.webkitTemporaryStorage' or 'navigator.webkitPersistentStorage' instead.
             // TODO: get real size
             var size = (16+16) * 1024 * 1024;
-            webkitStorageInfo.requestQuota(PERSISTENT, size, function (grantedbytes) {
-                if (grantedbytes < size) {
-                        throw "size not granted";
-                }
-                realstart();
-            });
-
+            if (typeof navigator.webkitPersistentStorage != 'undefined') {
+                navigator.webkitPersistentStorage.requestQuota(size, xxx);
+            } else {
+                webkitStorageInfo.requestQuota(PERSISTENT, size, xxx);
+            }
 
         }
     </script>
