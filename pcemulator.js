@@ -61,7 +61,7 @@ function PCEmulator(parameters) {
     this.ide0 = new IDE_device(this, 0x1f0, 0x3f6, this.pic.set_irq.bind(this.pic, 14), block_readers, cpu.malloc);
     this.ide0.log = logger;
     if (parameters.clipboard_get && parameters.clipboard_set) {
-        this.jsclipboard = new ClipboardDevice(this, 0x3c0, parameters.clipboard_get, parameters.clipboard_set, parameters.get_boot_time);
+        this.jsclipboard = new ClipboardDevice(this, 0x3e0, parameters.clipboard_get, parameters.clipboard_set, parameters.get_boot_time);
         this.jsclipboard.log = logger;
     }
     cpu.ld8_port = this.ld8_port.bind(this);

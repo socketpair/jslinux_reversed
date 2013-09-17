@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 
     iopl(3); /* allow I/O port access (root only) */
 
-    boot_time = inl(0x3cc);
+    boot_time = inl(0x3ec);
     printf("Booted in %d.%03d s\n",
            boot_time / 1000,
            boot_time % 1000);

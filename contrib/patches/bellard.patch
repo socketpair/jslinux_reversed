@@ -56,7 +56,7 @@ diff -ruN linux-2.6.20.org/drivers/char/jsclipboard.c linux-2.6.20/drivers/char/
 +
 +#define JSCLIPBOARD_MINOR 250
 +
-+#define JSCLIPBOARD_PORT 0x3c0
++#define JSCLIPBOARD_PORT 0x3e0
 +
 +static int io_port = JSCLIPBOARD_PORT;
 +static int minor = JSCLIPBOARD_MINOR;
