@@ -65,6 +65,13 @@ function JslinuxWorker(worker_child, is_pseudo) {
         });
     };
 
+    var render_screenshot = function(data) {
+        worker_child.postMessage({
+            what: 'screenshot',
+            data: data
+        });
+    };
+
     worker_child.onmessage = function (evt) {
         var data = evt.data;
         switch (data.what) {
@@ -74,6 +81,7 @@ function JslinuxWorker(worker_child, is_pseudo) {
                     pc.log = post_log_message.bind(worker_child);
                     pc.com1.write_func = post_com1_message.bind(worker_child);
                     pc.com2.write_func = post_com2_message.bind(worker_child);
+                    pc.render_screenshot = render_screenshot.bind(worker_child);
                     //post_log_message(document.getElementsByTagName('script'));
                 });
                 break;

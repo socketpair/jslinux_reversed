@@ -59,6 +59,7 @@ mknod $ddd/dev/ttyS3 c 4 67
 mknod $ddd/dev/hda b 3 0
 mknod $ddd/dev/hdb b 3 64
 mknod $ddd/dev/hdb1 b 3 65
+mknod $ddd/dev/fb0 c 29 0
 
 echo -e '#!/bin/sh\necho \$* > /dev/clipboard\n' > $ddd/bin/answer
 chmod a+x $ddd/bin/answer

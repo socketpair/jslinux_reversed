@@ -76,11 +76,19 @@ function PCEmulator(parameters) {
 PCEmulator.prototype.log = function () {
 };
 
+PCEmulator.prototype.render_screenshot = function() {
+// should be re-imlemented (monkey-patched)
+};
+
 PCEmulator.prototype.load_binary = function (url, address, callback) {
     return this.cpu.load_binary(url, address, callback);
 };
 PCEmulator.prototype.start = function () {
+    var me = this;
     setTimeout(this.timer_func.bind(this), 10);
+    setInterval(function() {
+        me.render_screenshot(me.cpu.get_screenshot());
+    }, 1000);
 };
 PCEmulator.prototype.timer_func = function () {
     var Oa, ii, ji, ki, this_, cpu;

@@ -1,6 +1,6 @@
 "use strict";
 
-function JSLinuxWithGUI(term_container, linuxname, prefix, cmdline) {
+function JSLinuxWithGUI(term_container, linuxname, prefix, cmdline, canvas_container) {
     if (typeof Uint8Array == 'undefined' || typeof Uint16Array == 'undefined' || typeof Int32Array == 'undefined' || typeof ArrayBuffer == 'undefined') {
         this.report_no_support(term_container);
         return;
@@ -19,6 +19,15 @@ function JSLinuxWithGUI(term_container, linuxname, prefix, cmdline) {
         console.log("Using SLOW worker emulation");
         worker = new PseudoWorker(prefix + '/worker.js');
     }
+
+    var canvas = document.createElement('canvas');
+    canvas.width=640;
+    canvas.height=480;
+    canvas.style.border = "1px solid green";
+    var context = canvas.getContext('2d');
+    var imageData = context.createImageData(640, 480);
+    canvas_container.appendChild(canvas);
+    var i;
 
     //predefined event
     worker.onmessage = function (evt) {
@@ -43,6 +52,14 @@ function JSLinuxWithGUI(term_container, linuxname, prefix, cmdline) {
                 break;
             case 'worker_loaded':
                 //console.log('Worker for ' + linuxname + ' loaded');
+                break;
+            case 'screenshot':
+                imageData.data.set(evt.data.data);
+                for (i=3; i<imageData.data.length; i+=4) {
+                    // remove alpha-values
+                    imageData.data[i]=0xff;
+                }
+                context.putImageData(imageData,0,0);
                 break;
             default:
                 // TODO: report this to user

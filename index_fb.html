@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Javascript PC Emulator</title>
+    <link rel="stylesheet" href="jslinux.css">
+    <script type="text/javascript" src="utils.js"></script>
+    <script type="text/javascript" src="term.js"></script>
+    <script type="text/javascript" src="jslinuxwithgui.js"></script>
+    <script type="text/javascript" src="pseudoworker.js"></script>
+    <script type="text/javascript">
+        function megastart() {
+            var realstart=function() {
+                var prefix='/jslinux';
+
+                var prefix = '/jslinux';
+                var j1 = new JSLinuxWithGUI(
+                        document.getElementById('terminal1'),
+                        'linux1',
+                        prefix,
+                        "console=ttyS0 root=/dev/hda ro init=/sbin/init notsc=1 hibernate=nocompress resume=/dev/hdb",
+                        document.getElementById("canvas1")
+                );
+/*
+                var buf='';
+                j1.onterminaloutput = function(qwe) {
+                    buf += qwe.data;
+                    if (buf.indexOf('\n')==-1)
+                        return;
+                    var arr, i;
+                    arr = buf.split('\n');
+                    if (buf[buf.length-1]=='\n') {
+                        buf = '';
+                    } else {
+                        buf = arr[arr.length-1];
+                        arr = arr.slice(0, arr.length-1);
+                    }
+                    for (i=0; i<arr.length; i++) {
+                        console.log(arr[i]);
+                    }
+                };
+*/
+                j1.start();
+            };
+
+            // TODO: webkit only (!)
+            // TODO: get real size
+            var size = 20 * 1024 * 1024;
+
+            var xxx = function (grantedbytes) {
+                if (grantedbytes < size) {
+                    throw "size not granted";
+                }
+                realstart();
+            };
+
+            if (typeof navigator.webkitPersistentStorage != 'undefined') {
+                navigator.webkitPersistentStorage.requestQuota(size, xxx);
+            } else {
+                webkitStorageInfo.requestQuota(PERSISTENT, size, xxx);
+            }
+
+        }
+    </script>
+</head>
+
+<body onload="megastart()" bgcolor="black">
+<div id="terminal1"></div>
+<div id="canvas1"></div>
+</body>
+</html>

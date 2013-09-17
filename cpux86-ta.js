@@ -56,14 +56,24 @@ function CPU_X86() {
     }
     this.tlb_pages = new Int32Array(2048);
     this.tlb_pages_count = 0;
+    this.fb_offset = 0;
+    this.fb_size = 0;
 }
+
+CPU_X86.prototype.get_screenshot = function() {
+    return this.phys_mem8.subarray(this.fb_offset, this.fb_offset+this.fb_size);
+};
 
 CPU_X86.prototype.log = function () {
 };
 
 CPU_X86.prototype.phys_mem_resize = function (new_size) {
+    this.fb_offset = new_size + 4096;
+    this.fb_size = 640*480*4;
+
+    new_size += 4096 + this.fb_size;
     this.mem_size = new_size;
-    new_size += ((15 + 3) & ~3);
+    new_size += ((15 + 3) & ~3); //TODO: allocates 16 byes larger? WHY?
     this.phys_mem = new ArrayBuffer(new_size);
     this.phys_mem8 = new Uint8Array(this.phys_mem, 0, new_size);
     this.phys_mem16 = new Uint16Array(this.phys_mem, 0, new_size / 2);

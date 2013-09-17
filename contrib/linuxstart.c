@@ -21,32 +21,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <linux/screen_info.h>
+
 #include "libc.h"
 #include "linuxstart.h"
 
+
+
 /* from plex86 (BSD license) */
 struct  __attribute__ ((packed)) linux_params {
-  // For 0x00..0x3f, see 'struct screen_info' in linux/include/linux/tty.h.
-  // I just padded out the VESA parts, rather than define them.
 
-  /* 0x000 */ uint8_t   orig_x;
-  /* 0x001 */ uint8_t   orig_y;
-  /* 0x002 */ uint16_t  ext_mem_k;
-  /* 0x004 */ uint16_t  orig_video_page;
-  /* 0x006 */ uint8_t   orig_video_mode;
-  /* 0x007 */ uint8_t   orig_video_cols;
-  /* 0x008 */ uint16_t  unused1;
-  /* 0x00a */ uint16_t  orig_video_ega_bx;
-  /* 0x00c */ uint16_t  unused2;
-  /* 0x00e */ uint8_t   orig_video_lines;
-  /* 0x00f */ uint8_t   orig_video_isVGA;
-  /* 0x010 */ uint16_t  orig_video_points;
-  /* 0x012 */ uint8_t   pad0[0x20 - 0x12]; // VESA info.
-  /* 0x020 */ uint16_t  cl_magic;  // Commandline magic number (0xA33F)
-  /* 0x022 */ uint16_t  cl_offset; // Commandline offset.  Address of commandline
-                                 // is calculated as 0x90000 + cl_offset, bu
-                                 // only if cl_magic == 0xA33F.
-  /* 0x024 */ uint8_t   pad1[0x40 - 0x24]; // VESA info.
+    struct screen_info si;
 
   /* 0x040 */ uint8_t   apm_bios_info[20]; // struct apm_bios_info
   /* 0x054 */ uint8_t   pad2[0x80 - 0x54];
@@ -153,8 +138,8 @@ void setup(int phys_ram_size, int initrd_size, char *cmdline)
     memset(params, 0, sizeof(struct linux_params));
     params->mount_root_rdonly = 0;
     params->cmd_line_ptr = (uintptr_t)params->commandline;
-    params->alt_mem_k = (phys_ram_size / 1024) - 1024;
-    
+    params->alt_mem_k = (phys_ram_size / 1024) - 1024; // WHY?!
+
     strcpy((char *)params->commandline, cmdline);
 
     params->loader_type = 0x01;
@@ -164,8 +149,31 @@ void setup(int phys_ram_size, int initrd_size, char *cmdline)
         params->initrd_size = initrd_size;
     }
 
-    params->orig_video_lines = 25;
-    params->orig_video_cols = 80;
+    params->si.orig_video_lines = 25;
+    params->si.orig_video_cols = 80;
+
+
+    // framebuffer setup begin
+    params->si.orig_video_isVGA = VIDEO_TYPE_VLFB;
+    // TODO: WTF? params->si.capabilities = 2 | 0??;
+    params->si.lfb_base = phys_ram_size + 4096; // TODO: real offset from params->alt_mem_k
+    params->si.lfb_depth = 32; // bits per pixel
+    params->si.lfb_width = 640;
+    params->si.lfb_height = 480;
+    params->si.lfb_linelength = params->si.lfb_width * 4; // in bytes (!)
+    //params->si.lfb_size = 640*480*4 / 65536; // re-calculated by linux kernel, so let eat bee :)
+    params->si.pages = 640*480*4 / 4096; // only for printing, value ignored
+//    params->si.vesapm_seg = ???? segment WTF?
+//    params->si.vesapm_off = ???? offset WTF?
+    params->si.red_pos = 0;
+    params->si.red_size = 8;
+    params->si.green_pos = 8;
+    params->si.green_size = 8;
+    params->si.blue_pos = 16;
+    params->si.blue_size = 8;
+    params->si.rsvd_pos = 24;
+    params->si.rsvd_size = 8;
+
 
     params->gdt_table[2] = 0x00cf9a000000ffffLL; /* KERNEL_CS */
     params->gdt_table[3] = 0x00cf92000000ffffLL; /* KERNEL_DS */
