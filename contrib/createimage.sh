@@ -38,6 +38,7 @@ tar -C squeeze \
     -c . | tar -C $ddd -x
 
 cat show_boot_time.c | chroot $ddd gcc -m32 -xc -s -Os - -o /usr/bin/show_boot_time
+cp -f fbdraw /usr/bin/fbdraw
 
 rm -f $ddd/sbin/init;
 cp -f init.sh $ddd/sbin/init

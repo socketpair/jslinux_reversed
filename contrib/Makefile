@@ -3,7 +3,7 @@ CC=gcc -m32
 CFLAGS= -O2 -Wall -fno-builtin -fno-stack-protector #-march=i386
 HOST_CFLAGS=-O2 -Wall
 # modify to set the kernel path
-KERNEL_PATH=../../linux
+KERNEL_PATH=linux
 BINPATH=../bin
 
 all: linuxstart.bin kernel splitted
